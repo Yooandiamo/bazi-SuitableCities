@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { UserInput, DestinyAnalysis } from "../types";
 
 const parseJSON = (text: string) => {
@@ -41,7 +41,8 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
     Provide the output strictly in the requested JSON format.
   `;
 
-  const schema: Schema = {
+  // Explicitly typed as any or inferred to avoid import errors if Schema is not exported
+  const schema = {
     type: Type.OBJECT,
     properties: {
       pillars: {
@@ -111,7 +112,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
       config: {
         responseMimeType: "application/json",
         responseSchema: schema,
-        temperature: 0, // Set to 0 for deterministic results
+        temperature: 0, 
       },
     });
 
