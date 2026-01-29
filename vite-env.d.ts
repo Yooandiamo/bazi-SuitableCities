@@ -1,32 +1,11 @@
-// Shim for asset imports when vite/client types are missing
-declare module '*.svg' {
-  import * as React from 'react';
-  export const ReactComponent: React.FunctionComponent<React.SVGProps<SVGSVGElement> & { title?: string }>;
-  const src: string;
-  export default src;
-}
+/// <reference types="vite/client" />
 
-declare module '*.png' {
-  const content: string;
-  export default content;
-}
-
-declare module '*.jpg' {
-  const content: string;
-  export default content;
-}
-
-declare module '*.jpeg' {
-  const content: string;
-  export default content;
-}
-
-declare module '*.gif' {
-  const content: string;
-  export default content;
-}
-
-declare module '*.webp' {
-  const content: string;
-  export default content;
+// Augment the NodeJS namespace to include API_KEY in ProcessEnv.
+// This resolves the "redeclare block-scoped variable 'process'" error by assuming 
+// process is already declared (e.g. by @types/node) and extending its type definition.
+declare namespace NodeJS {
+  interface ProcessEnv {
+    API_KEY: string;
+    [key: string]: any;
+  }
 }
