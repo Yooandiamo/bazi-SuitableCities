@@ -1,10 +1,29 @@
-// Manually declare process to fix "Cannot find type definition file for 'node'"
-// and allow usage of process.env in client code.
-declare var process: {
-  env: {
-    [key: string]: string | undefined;
+// Shim for @google/genai to fix TS2307 error if types aren't resolving
+declare module '@google/genai' {
+  export class GoogleGenAI {
+    constructor(config: { apiKey: string | undefined });
+    models: {
+      generateContent(params: {
+        model: string;
+        contents: any;
+        config?: {
+          responseMimeType?: string;
+          responseSchema?: any;
+          systemInstruction?: string;
+        };
+      }): Promise<{ text: string }>;
+    };
   }
-};
+
+  export enum Type {
+    OBJECT = 'OBJECT',
+    ARRAY = 'ARRAY',
+    STRING = 'STRING',
+    NUMBER = 'NUMBER',
+    INTEGER = 'INTEGER',
+    BOOLEAN = 'BOOLEAN'
+  }
+}
 
 // Shim for asset imports when vite/client types are missing or to override
 declare module '*.svg' {
