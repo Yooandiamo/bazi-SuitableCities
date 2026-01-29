@@ -1,8 +1,9 @@
-// Removed missing vite/client reference
 // /// <reference types="vite/client" />
 
+// Declare untyped third-party modules
+declare module 'lunar-javascript';
+
 // Augment NodeJS ProcessEnv to include API_KEY. 
-// We do not declare 'var process' to avoid redeclaration errors as it's already provided by @types/node.
 declare namespace NodeJS {
   interface ProcessEnv {
     API_KEY?: string;
