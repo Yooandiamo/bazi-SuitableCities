@@ -144,7 +144,9 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
       throw new Error("Empty response from the AI model.");
     }
 
-    const parsedAIResponse = JSON.parse(text);
+    // Sanitize: Strip potential markdown code blocks provided by the model
+    const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
+    const parsedAIResponse = JSON.parse(cleanedText);
     
     // Merge the Accurate Local Data with the AI Interpretation
     return sanitizeData(parsedAIResponse, localBaZi);
