@@ -3,16 +3,29 @@ import { UserInput, DestinyAnalysis } from "../types";
 
 const parseJSON = (text: string) => {
     try {
-        // Remove code block markers if present
-        let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanText);
+        // Find the first '{' and the last '}' to handle potential preamble/postamble from the model
+        const startIndex = text.indexOf('{');
+        const endIndex = text.lastIndexOf('}');
+        
+        if (startIndex === -1 || endIndex === -1) {
+             throw new Error("No JSON object found in response");
+        }
+        
+        const jsonString = text.substring(startIndex, endIndex + 1);
+        return JSON.parse(jsonString);
     } catch (e) {
         console.error("Failed to parse JSON", e);
-        throw new Error("Invalid response format from oracle");
+        console.error("Raw text:", text);
+        throw new Error("Failed to parse the oracle's response. Please try again.");
     }
 };
 
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
+  // 1. Validate API Key Existence
+  if (!process.env.API_KEY) {
+    throw new Error("API Key is missing. Please add 'API_KEY' to your Vercel Environment Variables.");
+  }
+
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
@@ -112,7 +125,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
       config: {
         responseMimeType: "application/json",
         responseSchema: schema,
-        temperature: 0, 
+        temperature: 0.5, // Slightly higher creativity for descriptions
       },
     });
 
@@ -120,8 +133,26 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
       return parseJSON(response.text) as DestinyAnalysis;
     }
     throw new Error("Empty response from the oracle.");
-  } catch (error) {
-    console.error("Gemini Analysis Error:", error);
-    throw error;
+  } catch (error: any) {
+    console.error("Gemini Analysis Error Details:", error);
+    
+    // Provide more specific error messages for the UI
+    let errorMessage = "An error occurred during analysis.";
+    
+    if (error.message) {
+        if (error.message.includes("API Key is missing")) {
+            errorMessage = "API Key Not Found. Please set the API_KEY environment variable in Vercel.";
+        } else if (error.toString().includes("401") || error.toString().includes("403")) {
+            errorMessage = "Invalid API Key. Access denied.";
+        } else if (error.toString().includes("404")) {
+            errorMessage = "Model Not Found. The 'gemini-3-flash-preview' model may not be available for your API key.";
+        } else if (error.toString().includes("503")) {
+            errorMessage = "The Service is currently unavailable. Please try again later.";
+        } else {
+            errorMessage = error.message;
+        }
+    }
+    
+    throw new Error(errorMessage);
   }
 };

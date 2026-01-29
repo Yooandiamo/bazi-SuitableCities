@@ -17,9 +17,11 @@ const App: React.FC = () => {
       const result = await analyzeDestiny(input);
       setAnalysisResult(result);
       setLoadingState(LoadingState.COMPLETE);
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("天机暂不可泄 (连接断开)，请稍后再试。");
+    } catch (err: any) {
+      console.error("App Error:", err);
+      // Display the specific error message from the service
+      const message = err instanceof Error ? err.message : "未知错误 (Unknown Error)";
+      setErrorMsg(message);
       setLoadingState(LoadingState.ERROR);
     }
   };
@@ -65,7 +67,7 @@ const App: React.FC = () => {
         {loadingState === LoadingState.ERROR && (
            <div className="text-center max-w-md p-8 bg-red-900/20 backdrop-blur-md rounded-2xl border border-red-500/30">
               <h3 className="text-xl font-bold text-red-400 mb-2">连接中断</h3>
-              <p className="text-slate-300 mb-6">{errorMsg}</p>
+              <p className="text-slate-300 mb-6 break-words">{errorMsg}</p>
               <button 
                 onClick={() => setLoadingState(LoadingState.IDLE)}
                 className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"
