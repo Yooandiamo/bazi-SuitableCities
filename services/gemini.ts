@@ -46,6 +46,11 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
 
 // 2. Main Analysis Function
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
+  // Validate API Key presence
+  if (!process.env.API_KEY) {
+    throw new Error("API Configuration Error: API_KEY is missing. Please check the environment settings.");
+  }
+
   // Initialize SDK with process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -144,6 +149,10 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
 
   } catch (error: any) {
     console.error("Analysis Failed:", error);
+    // Handle the specific 400 API key invalid error gracefully if it bubbles up
+    if (error.toString().includes("API KEY NOT VALID")) {
+        throw new Error("System API Key is invalid or expired. Please contact support.");
+    }
     throw new Error(error.message || "无法连接到命运分析服务，请稍后再试。");
   }
 };

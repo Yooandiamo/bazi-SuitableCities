@@ -8,11 +8,14 @@ export default defineConfig(({ mode }) => {
   // Cast process to any to avoid "Property 'cwd' does not exist on type 'Process'" error
   const env = loadEnv(mode, (process as any).cwd(), '');
   
+  // Prioritize env var from file, then system process.env (for cloud IDEs), then empty string
+  const apiKey = env.API_KEY || process.env.API_KEY || '';
+
   return {
     plugins: [react()],
     define: {
       // Expose these variables to the client-side code safely
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
+      'process.env.API_KEY': JSON.stringify(apiKey),
     }
   };
 });
