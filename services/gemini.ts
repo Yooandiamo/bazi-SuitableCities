@@ -1,9 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { UserInput, DestinyAnalysis } from "../types";
 
+// Helper to safely parse JSON from potentially messy AI output
 const parseJSON = (text: string) => {
     try {
-        // Find the first '{' and the last '}' to handle potential preamble/postamble from the model
         const startIndex = text.indexOf('{');
         const endIndex = text.lastIndexOf('}');
         
@@ -16,23 +15,29 @@ const parseJSON = (text: string) => {
     } catch (e) {
         console.error("Failed to parse JSON", e);
         console.error("Raw text:", text);
-        throw new Error("Failed to parse the oracle's response. Please try again.");
+        throw new Error("Failed to parse the oracle's response. The model may be overloaded.");
     }
 };
 
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
-  // 1. Validate API Key Existence
-  if (!process.env.API_KEY) {
-    throw new Error("API Key is missing. Please add 'API_KEY' to your Vercel Environment Variables.");
-  }
+  // 1. Configuration Validation
+  const apiKey = process.env.API_KEY;
+  // Default to DeepSeek if not provided, as it's excellent for Chinese metaphysics
+  const baseUrl = process.env.API_BASE_URL || "https://api.deepseek.com"; 
+  const model = process.env.AI_MODEL || "deepseek-chat";
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please set 'API_KEY' in your environment variables.");
+  }
 
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
 
-  const prompt = `
-    You are a grandmaster of Chinese Metaphysics, BaZi (Four Pillars of Destiny), and WuXing (Five Elements).
-    
+  // 2. Prompt Construction
+  // We include the schema definition directly in the prompt for high compatibility across different LLMs
+  const systemPrompt = `You are a grandmaster of Chinese Metaphysics, BaZi (Four Pillars of Destiny), and WuXing (Five Elements).
+Your task is to analyze birth data and return a STRICT JSON object. Do not output markdown code blocks (like \`\`\`json). Just output the raw JSON.`;
+
+  const userPrompt = `
     The user is born on:
     Date: ${input.birthDate}
     Time: ${input.birthTime}
@@ -40,119 +45,91 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
     
     Perform a detailed analysis in SIMPLIFIED CHINESE (简体中文):
     1. Calculate the Four Pillars (Year, Month, Day, Hour).
-    2. Calculate the approximate percentage strength of the Five Elements (Wood, Fire, Earth, Metal, Water) in their chart.
+    2. Calculate the approximate percentage strength of the Five Elements (Wood, Fire, Earth, Metal, Water).
     3. Identify the Day Master (Self Element).
-    4. Determine the Favorable Elements (Yong Shen) based on balance.
-    5. Recommend 5 suitable cities to live in (mix of global and Chinese major cities) based on the favorable elements and directions.
-    6. Recommend 5 suitable career fields based on the favorable elements.
+    4. Determine the Favorable Elements (Yong Shen).
+    5. Recommend 5 suitable cities.
+    6. Recommend 5 suitable career fields.
+
+    REQUIRED JSON STRUCTURE:
+    {
+      "pillars": [
+        { "name": "年柱", "heavenlyStem": "甲", "earthlyBranch": "子", "elementStem": "Wood", "elementBranch": "Water" },
+        { "name": "月柱", "heavenlyStem": "...", "earthlyBranch": "...", "elementStem": "...", "elementBranch": "..." },
+        { "name": "日柱", "heavenlyStem": "...", "earthlyBranch": "...", "elementStem": "...", "elementBranch": "..." },
+        { "name": "时柱", "heavenlyStem": "...", "earthlyBranch": "...", "elementStem": "...", "elementBranch": "..." }
+      ],
+      "fiveElements": [
+        { "element": "Wood", "percentage": 20, "label": "木" },
+        { "element": "Fire", "percentage": 30, "label": "火" },
+        { "element": "Earth", "percentage": 10, "label": "土" },
+        { "element": "Metal", "percentage": 10, "label": "金" },
+        { "element": "Water", "percentage": 30, "label": "水" }
+      ],
+      "dayMaster": "阳木 (甲)",
+      "favorableElements": ["木", "火"],
+      "unfavorableElements": ["金"],
+      "summary": "Your mystical summary here in Chinese...",
+      "suitableCities": [
+        { "title": "City Name", "description": "Reason...", "matchScore": 95 }
+      ],
+      "suitableCareers": [
+        { "title": "Career Name", "description": "Reason...", "matchScore": 90 }
+      ]
+    }
 
     IMPORTANT: 
-    - Keep 'element' fields in English (Wood, Fire, Earth, Metal, Water) for code logic compatibility.
-    - All other text (descriptions, titles, summaries, pillar names) MUST be in Simplified Chinese.
-    - Pillar names should be "年柱", "月柱", "日柱", "时柱".
-
-    Provide the output strictly in the requested JSON format.
+    - 'element' fields in 'pillars' and 'fiveElements' MUST be English (Wood, Fire, Earth, Metal, Water) for the chart logic.
+    - All other text MUST be Simplified Chinese.
   `;
 
-  // Explicitly typed as any or inferred to avoid import errors if Schema is not exported
-  const schema = {
-    type: Type.OBJECT,
-    properties: {
-      pillars: {
-        type: Type.ARRAY,
-        description: "The Four Pillars of Destiny",
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING, description: "Use Chinese: 年柱, 月柱, 日柱, 时柱" },
-            heavenlyStem: { type: Type.STRING, description: "Character like 甲, 乙..." },
-            earthlyBranch: { type: Type.STRING, description: "Character like 子, 丑..." },
-            elementStem: { type: Type.STRING, description: "English: Wood, Fire, Earth, Metal, Water" },
-            elementBranch: { type: Type.STRING, description: "English: Wood, Fire, Earth, Metal, Water" }
-          },
-          required: ["name", "heavenlyStem", "earthlyBranch", "elementStem", "elementBranch"]
-        }
-      },
-      fiveElements: {
-        type: Type.ARRAY,
-        description: "Percentage strength of 5 elements",
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            element: { type: Type.STRING, description: "English: Wood, Fire, Earth, Metal, Water" },
-            percentage: { type: Type.NUMBER },
-            label: { type: Type.STRING, description: "Chinese character: 木, 火, 土, 金, 水" }
-          },
-          required: ["element", "percentage", "label"]
-        }
-      },
-      dayMaster: { type: Type.STRING, description: "The Day Stem element and character in Chinese (e.g. 阳火 (丙))" },
-      favorableElements: { type: Type.ARRAY, items: { type: Type.STRING, description: "Chinese names of elements" } },
-      unfavorableElements: { type: Type.ARRAY, items: { type: Type.STRING, description: "Chinese names of elements" } },
-      summary: { type: Type.STRING, description: "A brief, mystical summary of the person's innate nature in Chinese." },
-      suitableCities: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING, description: "City Name in Chinese" },
-            description: { type: Type.STRING, description: "Why this city fits in Chinese" },
-            matchScore: { type: Type.NUMBER, description: "Compatibility score 0-100" }
-          },
-          required: ["title", "description", "matchScore"]
-        }
-      },
-      suitableCareers: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING, description: "Career Title in Chinese" },
-            description: { type: Type.STRING, description: "Why this career fits in Chinese" },
-            matchScore: { type: Type.NUMBER, description: "Compatibility score 0-100" }
-          },
-          required: ["title", "description", "matchScore"]
-        }
-      }
-    },
-    required: ["pillars", "fiveElements", "dayMaster", "favorableElements", "summary", "suitableCities", "suitableCareers"]
-  };
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: schema,
-        temperature: 0.5, // Slightly higher creativity for descriptions
+    // 3. API Call using standard fetch (compatible with DeepSeek, OpenAI, Moonshot, etc.)
+    // We append /chat/completions to the base URL if it's missing, assuming standard OpenAI format
+    const endpoint = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
       },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 1.3, // Higher temp for DeepSeek usually yields better creative/reasoning results, adjust as needed
+        response_format: { type: "json_object" }, // Enforce JSON mode if supported
+        stream: false
+      })
     });
 
-    if (response.text) {
-      return parseJSON(response.text) as DestinyAnalysis;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("API Error Response:", errorData);
+      
+      if (response.status === 401) throw new Error("Invalid API Key.");
+      if (response.status === 402) throw new Error("Insufficient Balance (No Credits).");
+      if (response.status === 404) throw new Error(`Model '${model}' not found or endpoint incorrect.`);
+      if (response.status === 429) throw new Error("Rate limit exceeded. Please try again later.");
+      if (response.status >= 500) throw new Error("The AI service is currently unavailable.");
+      
+      throw new Error(errorData.error?.message || `API Error: ${response.statusText}`);
     }
-    throw new Error("Empty response from the oracle.");
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("Empty response from the AI model.");
+    }
+
+    return parseJSON(content) as DestinyAnalysis;
+
   } catch (error: any) {
-    console.error("Gemini Analysis Error Details:", error);
-    
-    // Provide more specific error messages for the UI
-    let errorMessage = "An error occurred during analysis.";
-    
-    if (error.message) {
-        if (error.message.includes("API Key is missing")) {
-            errorMessage = "API Key Not Found. Please set the API_KEY environment variable in Vercel.";
-        } else if (error.toString().includes("401") || error.toString().includes("403")) {
-            errorMessage = "Invalid API Key. Access denied.";
-        } else if (error.toString().includes("404")) {
-            errorMessage = "Model Not Found. The 'gemini-3-flash-preview' model may not be available for your API key.";
-        } else if (error.toString().includes("503")) {
-            errorMessage = "The Service is currently unavailable. Please try again later.";
-        } else {
-            errorMessage = error.message;
-        }
-    }
-    
-    throw new Error(errorMessage);
+    console.error("AI Analysis Error:", error);
+    throw error; // Re-throw to be handled by the UI
   }
 };
