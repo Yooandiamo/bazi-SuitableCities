@@ -1,18 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Destiny Compass | 五行八字指南</title>
-    <!-- Tailwind CSS via CDN is fine for styling, but JS deps should be bundled -->
+    <title>Destiny Compass | 命运罗盘</title>
+    <!-- Tailwind CSS via CDN is acceptable for styling in this context -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Cinzel:wght@400;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;700&family=Cinzel:wght@400;700&display=swap');
       
       body {
         font-family: 'Cinzel', 'Noto Serif SC', serif;
         background-color: #0f172a; /* Slate 900 */
         color: #f8fafc; /* Slate 50 */
+        overflow-x: hidden;
       }
       
       /* Custom scrollbar for webkit */
@@ -23,11 +24,26 @@
         background: #0f172a;
       }
       ::-webkit-scrollbar-thumb {
-        background: #475569;
+        background: #334155;
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
+        background: #475569;
+      }
+
+      .animate-fade-in-up {
+        animation: fadeInUp 0.8s ease-out forwards;
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
     </style>
   <script type="importmap">

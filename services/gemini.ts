@@ -2,12 +2,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { UserInput, DestinyAnalysis, Recommendation } from "../types";
 import { calculateAccurateBaZi } from "../utils/baziHelper";
 
-// Robust data sanitization to prevent UI crashes (White Screen of Death)
+// 1. Data Sanitization Helper
 const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
-  // 1. Handle Null/Undefined/Non-object
   const data = aiData && typeof aiData === 'object' ? aiData : {};
-
-  // 2. Safe mapping helpers
   const safeString = (val: any) => (val && typeof val === 'string') ? val : String(val || '');
   const safeNumber = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
 
@@ -27,7 +24,6 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
       }))
     : [];
 
-  // Ensure arrays of strings are actually strings
   const favorableElements = Array.isArray(data.favorableElements) 
     ? data.favorableElements.map((s: any) => safeString(s)) 
     : [];
@@ -37,51 +33,49 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
     : [];
 
   return {
-    pillars: localData.pillars, // Use Local Calculation
-    fiveElements: localData.fiveElements, // Use Local Calculation
-    dayMaster: localData.dayMaster, // Use Local Calculation
-    favorableElements, // AI Interpretation
-    unfavorableElements, // AI Interpretation
+    pillars: localData.pillars,
+    fiveElements: localData.fiveElements,
+    dayMaster: localData.dayMaster,
+    favorableElements,
+    unfavorableElements,
     summary: safeString(data.summary) || "暂无命理摘要。",
     suitableCities,
     suitableCareers,
   };
 };
 
+// 2. Main Analysis Function
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
-  // Always use process.env.API_KEY directly when initializing.
+  // Initialize SDK with process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // --- STEP 1: Perform Accurate Local Calculation with True Solar Time ---
-  // We pass the longitude to adjust for True Solar Time.
+  // Step 1: Local Calculation (True Solar Time)
   const localBaZi = calculateAccurateBaZi(input.birthDate, input.birthTime, input.longitude);
   
-  // Format the pillars for the prompt
+  // Prepare Prompt Data
   const pillarsStr = localBaZi.pillars.map(p => `${p.name}: ${p.heavenlyStem}${p.earthlyBranch} (${p.elementStem}/${p.elementBranch})`).join(', ');
   const elementsStr = localBaZi.fiveElements.map(e => `${e.label}: ${e.percentage}%`).join(', ');
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
 
-  // 2. Prompt Construction
   const prompt = `
     User Profile:
     Gender: ${genderStr}
-    Birth Place: ${locationStr} (True Solar Time applied)
-    Birth Time: ${input.birthDate} ${input.birthTime}
+    Birth Place: ${locationStr}
+    Birth Time: ${input.birthDate} ${input.birthTime} (True Solar Time calculated)
 
-    *** ACCURATE BAZI CHART (DO NOT RECALCULATE) ***
+    *** BAZI CHART DATA ***
     Pillars: ${pillarsStr}
     Day Master: ${localBaZi.dayMaster} (${localBaZi.dayMasterElement})
     Five Elements Strength: ${elementsStr}
     
-    Perform a detailed interpretation in SIMPLIFIED CHINESE (简体中文) based on the chart above:
-    1. Determine the Favorable Elements (Yong Shen) and Unfavorable Elements based on the provided chart strength.
-    2. Write a short summary of the destiny.
-    3. Recommend 5 suitable cities based on the favorable elements.
-    4. Recommend 5 suitable career fields based on the favorable elements.
+    Task:
+    Perform a detailed destiny analysis in Simplified Chinese (简体中文).
+    Based on the strength of the Five Elements provided, identify the Favorable Elements (Yong Shen) and Unfavorable Elements.
+    Provide a destiny summary, suitable cities, and suitable careers.
   `;
 
-  // 3. Schema Definition
+  // Step 2: Define Output Schema
   const schema = {
     type: Type.OBJECT,
     properties: {
@@ -97,7 +91,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
       },
       summary: {
         type: Type.STRING,
-        description: "A summary of the destiny analysis."
+        description: "A summary of the destiny analysis (approx 50-80 words)."
       },
       suitableCities: {
         type: Type.ARRAY,
@@ -128,31 +122,28 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   };
 
   try {
-    // 4. API Call using gemini-3-pro-preview
+    // Step 3: Call Gemini API
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
         responseSchema: schema,
-        systemInstruction: "You are a grandmaster of Chinese Metaphysics and BaZi (Four Pillars of Destiny). Interpret the provided BaZi chart accurately."
+        systemInstruction: "You are a master of Traditional Chinese Metaphysics (BaZi). You provide accurate, encouraging, and culturally deep interpretations."
       }
     });
 
     const text = response.text;
-    if (!text) {
-      throw new Error("Empty response from the AI model.");
-    }
+    if (!text) throw new Error("API returned empty response");
 
-    // Sanitize: Strip potential markdown code blocks provided by the model
+    // Clean Markdown wrapper if present (e.g. ```json ... ```)
     const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
     const parsedAIResponse = JSON.parse(cleanedText);
     
-    // Merge the Accurate Local Data with the AI Interpretation
     return sanitizeData(parsedAIResponse, localBaZi);
 
   } catch (error: any) {
-    console.error("AI Analysis Error:", error);
-    throw error;
+    console.error("Analysis Failed:", error);
+    throw new Error(error.message || "无法连接到命运分析服务，请稍后再试。");
   }
 };

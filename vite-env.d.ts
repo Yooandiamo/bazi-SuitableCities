@@ -1,31 +1,15 @@
-// Shim for @google/genai to fix TS2307 error if types aren't resolving
-declare module '@google/genai' {
-  export class GoogleGenAI {
-    constructor(config: { apiKey: string | undefined });
-    models: {
-      generateContent(params: {
-        model: string;
-        contents: any;
-        config?: {
-          responseMimeType?: string;
-          responseSchema?: any;
-          systemInstruction?: string;
-        };
-      }): Promise<{ text: string }>;
-    };
-  }
+// Removed missing vite/client reference
+// /// <reference types="vite/client" />
 
-  export enum Type {
-    OBJECT = 'OBJECT',
-    ARRAY = 'ARRAY',
-    STRING = 'STRING',
-    NUMBER = 'NUMBER',
-    INTEGER = 'INTEGER',
-    BOOLEAN = 'BOOLEAN'
+// Augment NodeJS ProcessEnv to include API_KEY. 
+// We do not declare 'var process' to avoid redeclaration errors as it's already provided by @types/node.
+declare namespace NodeJS {
+  interface ProcessEnv {
+    API_KEY?: string;
   }
 }
 
-// Shim for asset imports when vite/client types are missing or to override
+// Asset module definitions
 declare module '*.svg' {
   import * as React from 'react';
   export const ReactComponent: React.FunctionComponent<React.SVGProps<SVGSVGElement> & { title?: string }>;
