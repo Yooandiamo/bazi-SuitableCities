@@ -99,11 +99,11 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   let model = process.env.AI_MODEL;
 
   if (!baseUrl || baseUrl === "undefined") {
-     baseUrl = "https://api.siliconflow.cn/v1"; 
+     baseUrl = "https://api.deepseek.com"; 
   }
   
   if (!model || model === "undefined") {
-     model = "deepseek-ai/DeepSeek-V3";
+     model = "deepseek-chat";
   }
 
   // --- DEBUG INFO FOR USER ---
@@ -195,6 +195,10 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
       console.error("API Error Response:", errorData);
       
       if (response.status === 401) {
+        // Hint for DeepSeek users
+        if (baseUrl.includes('deepseek')) {
+           throw new Error(`Invalid API Key for DeepSeek. Ensure your key works at platform.deepseek.com.`); 
+        }
         // Explicit hint for SiliconFlow users
         if (baseUrl.includes('siliconflow')) {
             throw new Error(`Invalid API Key. SiliconFlow rejected the token. Ensure your key starts with 'sk-' and has no spaces. (Provider: ${baseUrl})`);
@@ -204,6 +208,10 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
 
       if (response.status === 404) {
         throw new Error(`Model '${model}' not found. Check if this model name is correct for provider ${baseUrl}.`);
+      }
+
+      if (response.status === 402) {
+          throw new Error("Insufficient Balance. Please check your API provider account.");
       }
 
       if (response.status === 429) throw new Error("Rate limit exceeded. The AI is busy, please try again later.");
