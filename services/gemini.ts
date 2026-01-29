@@ -47,12 +47,10 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
 // 2. Main Analysis Function
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
   // Validate API Key presence
-  if (!process.env.API_KEY) {
-    throw new Error("API Configuration Error: API_KEY is missing. Please check the environment settings.");
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error("未配置 API Key。请在环境配置中添加 API Key。");
   }
-
-  // Initialize SDK with process.env.API_KEY
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Step 1: Local Calculation (True Solar Time)
   const localBaZi = calculateAccurateBaZi(input.birthDate, input.birthTime, input.longitude);
@@ -63,96 +61,90 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
 
-  const prompt = `
-    User Profile:
-    Gender: ${genderStr}
-    Birth Place: ${locationStr}
-    Birth Time: ${input.birthDate} ${input.birthTime} (True Solar Time calculated)
+  const userPrompt = `
+    用户信息:
+    性别: ${genderStr}
+    出生地: ${locationStr}
+    出生时间: ${input.birthDate} ${input.birthTime} (已校正真太阳时)
 
-    *** BAZI CHART DATA ***
-    Pillars: ${pillarsStr}
-    Day Master: ${localBaZi.dayMaster} (${localBaZi.dayMasterElement})
-    Five Elements Strength: ${elementsStr}
+    *** 八字排盘数据 ***
+    四柱: ${pillarsStr}
+    日主: ${localBaZi.dayMaster} (${localBaZi.dayMasterElement})
+    五行能量分布: ${elementsStr}
     
-    Task:
-    Perform a detailed destiny analysis in Simplified Chinese (简体中文).
-    Based on the strength of the Five Elements provided, identify the Favorable Elements (Yong Shen) and Unfavorable Elements.
-    Provide a destiny summary, suitable cities, and suitable careers.
+    任务:
+    请进行详细的命运分析（使用简体中文）。
+    1. 根据五行强弱，精准判断"喜用神" (Favorable Elements) 和 "忌神" (Unfavorable Elements)。
+    2. 提供一段 50-80 字的命理摘要。
+    3. 推荐 5 个最适合发展的城市。
+    4. 推荐 5 个最适合的职业方向。
   `;
 
-  // Step 2: Define Output Schema
-  const schema = {
-    type: Type.OBJECT,
-    properties: {
-      favorableElements: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
-        description: "List of favorable elements (Yong Shen)."
-      },
-      unfavorableElements: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
-        description: "List of unfavorable elements."
-      },
-      summary: {
-        type: Type.STRING,
-        description: "A summary of the destiny analysis (approx 50-80 words)."
-      },
-      suitableCities: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            description: { type: Type.STRING },
-            matchScore: { type: Type.NUMBER }
-          }
-        },
-        description: "List of 5 suitable cities."
-      },
-      suitableCareers: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            description: { type: Type.STRING },
-            matchScore: { type: Type.NUMBER }
-          }
-        },
-        description: "List of 5 suitable career fields."
-      }
-    },
-    required: ["favorableElements", "unfavorableElements", "summary", "suitableCities", "suitableCareers"]
-  };
-
   try {
-    // Step 3: Call Gemini API
+    const ai = new GoogleGenAI({ apiKey });
+    
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: prompt,
+      model: 'gemini-3-flash-preview',
+      contents: userPrompt,
       config: {
-        responseMimeType: 'application/json',
-        responseSchema: schema,
-        systemInstruction: "You are a master of Traditional Chinese Metaphysics (BaZi). You provide accurate, encouraging, and culturally deep interpretations."
+        systemInstruction: "你是一位精通传统八字命理的大师。请基于用户提供的八字排盘数据进行分析。",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            favorableElements: { 
+              type: Type.ARRAY, 
+              items: { type: Type.STRING } 
+            },
+            unfavorableElements: { 
+              type: Type.ARRAY, 
+              items: { type: Type.STRING } 
+            },
+            summary: { type: Type.STRING },
+            suitableCities: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  matchScore: { type: Type.NUMBER }
+                }
+              }
+            },
+            suitableCareers: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  matchScore: { type: Type.NUMBER }
+                }
+              }
+            }
+          },
+          required: ["favorableElements", "unfavorableElements", "summary", "suitableCities", "suitableCareers"]
+        }
       }
     });
 
-    const text = response.text;
-    if (!text) throw new Error("API returned empty response");
+    const content = response.text;
+    
+    if (!content) throw new Error("Gemini 返回了空内容");
 
-    // Clean Markdown wrapper if present (e.g. ```json ... ```)
-    const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
-    const parsedAIResponse = JSON.parse(cleanedText);
+    let parsedAIResponse;
+    try {
+        parsedAIResponse = JSON.parse(content);
+    } catch (e) {
+        console.error("JSON Parse Error:", e, content);
+        throw new Error("无法解析 AI 返回的数据格式");
+    }
     
     return sanitizeData(parsedAIResponse, localBaZi);
 
   } catch (error: any) {
     console.error("Analysis Failed:", error);
-    // Handle the specific 400 API key invalid error gracefully if it bubbles up
-    if (error.toString().includes("API KEY NOT VALID")) {
-        throw new Error("System API Key is invalid or expired. Please contact support.");
-    }
-    throw new Error(error.message || "无法连接到命运分析服务，请稍后再试。");
+    throw new Error(error.message || "无法连接到命运分析服务，请检查网络或稍后再试。");
   }
 };
