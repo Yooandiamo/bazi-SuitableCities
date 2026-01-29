@@ -19,16 +19,28 @@ const parseJSON = (text: string) => {
     }
 };
 
+// Robust data sanitization to prevent UI crashes (White Screen of Death)
+const sanitizeData = (data: any): DestinyAnalysis => {
+  return {
+    pillars: Array.isArray(data.pillars) ? data.pillars : [],
+    fiveElements: Array.isArray(data.fiveElements) ? data.fiveElements : [],
+    dayMaster: data.dayMaster || "Unknown",
+    favorableElements: Array.isArray(data.favorableElements) ? data.favorableElements : [],
+    unfavorableElements: Array.isArray(data.unfavorableElements) ? data.unfavorableElements : [],
+    summary: data.summary || "暂无命理摘要。",
+    suitableCities: Array.isArray(data.suitableCities) ? data.suitableCities : [],
+    suitableCareers: Array.isArray(data.suitableCareers) ? data.suitableCareers : [],
+  };
+};
+
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
   // 1. Configuration Validation
-  const apiKey = process.env.API_KEY;
+  // Trim whitespace which is a common source of "Invalid token" errors
+  const apiKey = (process.env.API_KEY || '').trim();
   
-  // Logic to determine Base URL
-  // We now default to SiliconFlow via vite.config.ts if no env var is present
   let baseUrl = process.env.API_BASE_URL;
   let model = process.env.AI_MODEL;
 
-  // Fallback in case vite.config.ts didn't inject (shouldn't happen, but safe to have)
   if (!baseUrl || baseUrl === "undefined") {
      baseUrl = "https://api.siliconflow.cn/v1"; 
   }
@@ -126,7 +138,11 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
       console.error("API Error Response:", errorData);
       
       if (response.status === 401) {
-        throw new Error(`Invalid API Key. Access denied by ${baseUrl}. Please check your SiliconFlow API Key in Vercel.`);
+        // Explicit hint for SiliconFlow users
+        if (baseUrl.includes('siliconflow')) {
+            throw new Error(`Invalid API Key. SiliconFlow rejected the token. Ensure your key starts with 'sk-' and has no spaces. (Provider: ${baseUrl})`);
+        }
+        throw new Error(`Invalid API Key. Access denied by ${baseUrl}.`);
       }
 
       if (response.status === 404) {
@@ -146,7 +162,9 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
       throw new Error("Empty response from the AI model.");
     }
 
-    return parseJSON(content) as DestinyAnalysis;
+    const parsed = parseJSON(content);
+    // Sanitize to prevent UI crashes if AI returns incomplete JSON
+    return sanitizeData(parsed);
 
   } catch (error: any) {
     console.error("AI Analysis Error:", error);

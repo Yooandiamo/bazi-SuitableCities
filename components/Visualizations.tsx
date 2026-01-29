@@ -11,8 +11,13 @@ interface ElementsChartProps {
 }
 
 export const PillarsDisplay: React.FC<PillarsDisplayProps> = ({ pillars }) => {
+  // Safety check
+  if (!pillars || pillars.length === 0) {
+    return <div className="text-slate-500 text-sm text-center py-4">暂无四柱数据</div>;
+  }
+
   const getElementColor = (element: string) => {
-    const el = element.toLowerCase();
+    const el = (element || '').toLowerCase();
     if (el.includes('wood') || el.includes('木')) return 'text-emerald-400';
     if (el.includes('fire') || el.includes('火')) return 'text-red-400';
     if (el.includes('earth') || el.includes('土')) return 'text-amber-400';
@@ -29,10 +34,10 @@ export const PillarsDisplay: React.FC<PillarsDisplayProps> = ({ pillars }) => {
           <span className="text-[10px] md:text-xs uppercase tracking-widest text-slate-500 mb-2">{p.name}</span>
           <div className="flex flex-col items-center gap-1">
             <span className={`text-2xl md:text-4xl font-serif font-bold ${getElementColor(p.elementStem)}`} title={`天干: ${p.heavenlyStem} (${p.elementStem})`}>
-              {p.heavenlyStem}
+              {p.heavenlyStem || '-'}
             </span>
             <span className={`text-2xl md:text-4xl font-serif font-bold ${getElementColor(p.elementBranch)}`} title={`地支: ${p.earthlyBranch} (${p.elementBranch})`}>
-              {p.earthlyBranch}
+              {p.earthlyBranch || '-'}
             </span>
           </div>
         </div>
@@ -42,6 +47,11 @@ export const PillarsDisplay: React.FC<PillarsDisplayProps> = ({ pillars }) => {
 };
 
 export const ElementsRadarChart: React.FC<ElementsChartProps> = ({ data }) => {
+  // Safety check
+  if (!data || data.length === 0) {
+    return <div className="text-slate-500 text-sm text-center py-10">暂无五行数据</div>;
+  }
+
   return (
     <div className="w-full h-64 md:h-80 relative">
       <ResponsiveContainer width="100%" height="100%">
@@ -71,11 +81,11 @@ export const ElementsRadarChart: React.FC<ElementsChartProps> = ({ data }) => {
         {data.map((d, i) => (
            <div key={i} className="flex items-center gap-2 text-xs">
               <span className={`w-2 h-2 rounded-full 
-                ${(d.element.toLowerCase().includes('wood') || d.label.includes('木')) ? 'bg-emerald-500' : ''}
-                ${(d.element.toLowerCase().includes('fire') || d.label.includes('火')) ? 'bg-red-500' : ''}
-                ${(d.element.toLowerCase().includes('earth') || d.label.includes('土')) ? 'bg-amber-500' : ''}
-                ${(d.element.toLowerCase().includes('metal') || d.label.includes('金')) ? 'bg-slate-300' : ''}
-                ${(d.element.toLowerCase().includes('water') || d.label.includes('水')) ? 'bg-blue-500' : ''}
+                ${(d.element?.toLowerCase().includes('wood') || d.label?.includes('木')) ? 'bg-emerald-500' : ''}
+                ${(d.element?.toLowerCase().includes('fire') || d.label?.includes('火')) ? 'bg-red-500' : ''}
+                ${(d.element?.toLowerCase().includes('earth') || d.label?.includes('土')) ? 'bg-amber-500' : ''}
+                ${(d.element?.toLowerCase().includes('metal') || d.label?.includes('金')) ? 'bg-slate-300' : ''}
+                ${(d.element?.toLowerCase().includes('water') || d.label?.includes('水')) ? 'bg-blue-500' : ''}
               `}></span>
               <span className="text-slate-400 w-12">{d.label}</span>
               <span className="text-slate-200 font-mono">{d.percentage}%</span>
