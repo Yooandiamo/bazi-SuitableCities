@@ -1,4 +1,4 @@
-import { UserInput, DestinyAnalysis } from "../types";
+import { UserInput, DestinyAnalysis, Pillar, ElementData, Recommendation } from "../types";
 
 // Helper to safely parse JSON from potentially messy AI output
 const parseJSON = (text: string) => {
@@ -21,15 +21,72 @@ const parseJSON = (text: string) => {
 
 // Robust data sanitization to prevent UI crashes (White Screen of Death)
 const sanitizeData = (data: any): DestinyAnalysis => {
+  // 1. Handle Null/Undefined/Non-object
+  if (!data || typeof data !== 'object') {
+    console.warn("Received invalid data structure:", data);
+    return {
+        pillars: [], fiveElements: [], dayMaster: "Unknown", favorableElements: [], unfavorableElements: [],
+        summary: "Error: Could not read AI response format.", suitableCities: [], suitableCareers: []
+    };
+  }
+
+  // 2. Safe mapping helpers
+  const safeString = (val: any) => (val && typeof val === 'string') ? val : String(val || '');
+  const safeNumber = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
+
+  // 3. Deep sanitization
+  const pillars: Pillar[] = Array.isArray(data.pillars) 
+    ? data.pillars.map((p: any) => ({
+        name: safeString(p?.name),
+        heavenlyStem: safeString(p?.heavenlyStem),
+        earthlyBranch: safeString(p?.earthlyBranch),
+        elementStem: safeString(p?.elementStem),
+        elementBranch: safeString(p?.elementBranch)
+      })) 
+    : [];
+
+  const fiveElements: ElementData[] = Array.isArray(data.fiveElements)
+    ? data.fiveElements.map((e: any) => ({
+        element: safeString(e?.element),
+        percentage: safeNumber(e?.percentage),
+        label: safeString(e?.label)
+      }))
+    : [];
+
+  const suitableCities: Recommendation[] = Array.isArray(data.suitableCities)
+    ? data.suitableCities.map((c: any) => ({
+        title: safeString(c?.title),
+        description: safeString(c?.description),
+        matchScore: safeNumber(c?.matchScore)
+      }))
+    : [];
+    
+  const suitableCareers: Recommendation[] = Array.isArray(data.suitableCareers)
+    ? data.suitableCareers.map((c: any) => ({
+        title: safeString(c?.title),
+        description: safeString(c?.description),
+        matchScore: safeNumber(c?.matchScore)
+      }))
+    : [];
+
+  // Ensure arrays of strings are actually strings
+  const favorableElements = Array.isArray(data.favorableElements) 
+    ? data.favorableElements.map((s: any) => safeString(s)) 
+    : [];
+    
+  const unfavorableElements = Array.isArray(data.unfavorableElements) 
+    ? data.unfavorableElements.map((s: any) => safeString(s)) 
+    : [];
+
   return {
-    pillars: Array.isArray(data.pillars) ? data.pillars : [],
-    fiveElements: Array.isArray(data.fiveElements) ? data.fiveElements : [],
-    dayMaster: data.dayMaster || "Unknown",
-    favorableElements: Array.isArray(data.favorableElements) ? data.favorableElements : [],
-    unfavorableElements: Array.isArray(data.unfavorableElements) ? data.unfavorableElements : [],
-    summary: data.summary || "暂无命理摘要。",
-    suitableCities: Array.isArray(data.suitableCities) ? data.suitableCities : [],
-    suitableCareers: Array.isArray(data.suitableCareers) ? data.suitableCareers : [],
+    pillars,
+    fiveElements,
+    dayMaster: safeString(data.dayMaster) || "Unknown",
+    favorableElements,
+    unfavorableElements,
+    summary: safeString(data.summary) || "暂无命理摘要。",
+    suitableCities,
+    suitableCareers,
   };
 };
 
