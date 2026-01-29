@@ -1,24 +1,6 @@
-import { UserInput, DestinyAnalysis, Pillar, ElementData, Recommendation } from "../types";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { UserInput, DestinyAnalysis, Recommendation } from "../types";
 import { calculateAccurateBaZi } from "../utils/baziHelper";
-
-// Helper to safely parse JSON from potentially messy AI output
-const parseJSON = (text: string) => {
-    try {
-        const startIndex = text.indexOf('{');
-        const endIndex = text.lastIndexOf('}');
-        
-        if (startIndex === -1 || endIndex === -1) {
-             throw new Error("No JSON object found in response");
-        }
-        
-        const jsonString = text.substring(startIndex, endIndex + 1);
-        return JSON.parse(jsonString);
-    } catch (e) {
-        console.error("Failed to parse JSON", e);
-        console.error("Raw text:", text);
-        throw new Error("Failed to parse the oracle's response. The model may be overloaded.");
-    }
-};
 
 // Robust data sanitization to prevent UI crashes (White Screen of Death)
 const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
@@ -29,10 +11,6 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
   const safeString = (val: any) => (val && typeof val === 'string') ? val : String(val || '');
   const safeNumber = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
 
-  // 3. Deep sanitization
-  // IMPORTANT: We use the LOCAL pillars and elements because they are mathematically accurate.
-  // We ignore the pillars returned by the AI to prevent hallucinations.
-  
   const suitableCities: Recommendation[] = Array.isArray(data.suitableCities)
     ? data.suitableCities.map((c: any) => ({
         title: safeString(c?.title),
@@ -71,23 +49,8 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
 };
 
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
-  // 1. Configuration Validation
-  const apiKey = (process.env.API_KEY || '').trim();
-  
-  let baseUrl = process.env.API_BASE_URL;
-  let model = process.env.AI_MODEL;
-
-  if (!baseUrl || baseUrl === "undefined") {
-     baseUrl = "https://api.deepseek.com"; 
-  }
-  
-  if (!model || model === "undefined") {
-     model = "deepseek-chat";
-  }
-
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please set 'API_KEY' in your environment variables.");
-  }
+  // Always use process.env.API_KEY directly when initializing.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // --- STEP 1: Perform Accurate Local Calculation with True Solar Time ---
   // We pass the longitude to adjust for True Solar Time.
@@ -100,12 +63,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
 
   // 2. Prompt Construction
-  const systemPrompt = `You are a grandmaster of Chinese Metaphysics and BaZi (Four Pillars of Destiny).
-Your task is to INTERPRET the provided BaZi chart and return a STRICT JSON object. 
-Do NOT recalculate the pillars. Use the pillars provided in the prompt as the absolute truth (they have been calculated using True Solar Time).
-Do NOT output markdown code blocks. Just output the raw JSON.`;
-
-  const userPrompt = `
+  const prompt = `
     User Profile:
     Gender: ${genderStr}
     Birth Place: ${locationStr} (True Solar Time applied)
@@ -121,61 +79,72 @@ Do NOT output markdown code blocks. Just output the raw JSON.`;
     2. Write a short summary of the destiny.
     3. Recommend 5 suitable cities based on the favorable elements.
     4. Recommend 5 suitable career fields based on the favorable elements.
-
-    REQUIRED JSON STRUCTURE:
-    {
-      "favorableElements": ["木", "火"],
-      "unfavorableElements": ["金"],
-      "summary": "Your mystical summary here in Chinese...",
-      "suitableCities": [
-        { "title": "City Name", "description": "Why this city fits the favorable element...", "matchScore": 95 }
-      ],
-      "suitableCareers": [
-        { "title": "Career Name", "description": "Why this career fits...", "matchScore": 90 }
-      ]
-    }
   `;
 
-  try {
-    // 3. API Call
-    const endpoint = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+  // 3. Schema Definition
+  const schema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      favorableElements: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+        description: "List of favorable elements (Yong Shen)."
       },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 1.3,
-        response_format: { type: "json_object" },
-        stream: false
-      })
+      unfavorableElements: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+        description: "List of unfavorable elements."
+      },
+      summary: {
+        type: Type.STRING,
+        description: "A summary of the destiny analysis."
+      },
+      suitableCities: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            matchScore: { type: Type.NUMBER }
+          }
+        },
+        description: "List of 5 suitable cities."
+      },
+      suitableCareers: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            matchScore: { type: Type.NUMBER }
+          }
+        },
+        description: "List of 5 suitable career fields."
+      }
+    },
+    required: ["favorableElements", "unfavorableElements", "summary", "suitableCities", "suitableCareers"]
+  };
+
+  try {
+    // 4. API Call using gemini-3-pro-preview
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+        systemInstruction: "You are a grandmaster of Chinese Metaphysics and BaZi (Four Pillars of Destiny). Interpret the provided BaZi chart accurately."
+      }
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      
-      if (response.status === 401) throw new Error(`Invalid API Key.`);
-      if (response.status === 429) throw new Error("Rate limit exceeded. The AI is busy.");
-      if (response.status >= 500) throw new Error("The AI service is currently unavailable.");
-      
-      throw new Error(errorData.error?.message || `API Error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
+    const text = response.text;
+    if (!text) {
       throw new Error("Empty response from the AI model.");
     }
 
-    const parsedAIResponse = parseJSON(content);
+    const parsedAIResponse = JSON.parse(text);
     
     // Merge the Accurate Local Data with the AI Interpretation
     return sanitizeData(parsedAIResponse, localBaZi);
