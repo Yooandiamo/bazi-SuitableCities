@@ -1,4 +1,5 @@
 import { UserInput, DestinyAnalysis, Pillar, ElementData, Recommendation } from "../types";
+import { calculateAccurateBaZi } from "../utils/baziHelper";
 
 // Helper to safely parse JSON from potentially messy AI output
 const parseJSON = (text: string) => {
@@ -20,39 +21,18 @@ const parseJSON = (text: string) => {
 };
 
 // Robust data sanitization to prevent UI crashes (White Screen of Death)
-const sanitizeData = (data: any): DestinyAnalysis => {
+const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
   // 1. Handle Null/Undefined/Non-object
-  if (!data || typeof data !== 'object') {
-    console.warn("Received invalid data structure:", data);
-    return {
-        pillars: [], fiveElements: [], dayMaster: "Unknown", favorableElements: [], unfavorableElements: [],
-        summary: "Error: Could not read AI response format.", suitableCities: [], suitableCareers: []
-    };
-  }
+  const data = aiData && typeof aiData === 'object' ? aiData : {};
 
   // 2. Safe mapping helpers
   const safeString = (val: any) => (val && typeof val === 'string') ? val : String(val || '');
   const safeNumber = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
 
   // 3. Deep sanitization
-  const pillars: Pillar[] = Array.isArray(data.pillars) 
-    ? data.pillars.map((p: any) => ({
-        name: safeString(p?.name),
-        heavenlyStem: safeString(p?.heavenlyStem),
-        earthlyBranch: safeString(p?.earthlyBranch),
-        elementStem: safeString(p?.elementStem),
-        elementBranch: safeString(p?.elementBranch)
-      })) 
-    : [];
-
-  const fiveElements: ElementData[] = Array.isArray(data.fiveElements)
-    ? data.fiveElements.map((e: any) => ({
-        element: safeString(e?.element),
-        percentage: safeNumber(e?.percentage),
-        label: safeString(e?.label)
-      }))
-    : [];
-
+  // IMPORTANT: We use the LOCAL pillars and elements because they are mathematically accurate.
+  // We ignore the pillars returned by the AI to prevent hallucinations.
+  
   const suitableCities: Recommendation[] = Array.isArray(data.suitableCities)
     ? data.suitableCities.map((c: any) => ({
         title: safeString(c?.title),
@@ -79,11 +59,11 @@ const sanitizeData = (data: any): DestinyAnalysis => {
     : [];
 
   return {
-    pillars,
-    fiveElements,
-    dayMaster: safeString(data.dayMaster) || "Unknown",
-    favorableElements,
-    unfavorableElements,
+    pillars: localData.pillars, // Use Local Calculation
+    fiveElements: localData.fiveElements, // Use Local Calculation
+    dayMaster: localData.dayMaster, // Use Local Calculation
+    favorableElements, // AI Interpretation
+    unfavorableElements, // AI Interpretation
     summary: safeString(data.summary) || "暂无命理摘要。",
     suitableCities,
     suitableCareers,
@@ -92,7 +72,6 @@ const sanitizeData = (data: any): DestinyAnalysis => {
 
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
   // 1. Configuration Validation
-  // Trim whitespace which is a common source of "Invalid token" errors
   const apiKey = (process.env.API_KEY || '').trim();
   
   let baseUrl = process.env.API_BASE_URL;
@@ -106,70 +85,59 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
      model = "deepseek-chat";
   }
 
-  // --- DEBUG INFO FOR USER ---
-  console.log(`[Destiny Compass] Using API Provider: ${baseUrl}`);
-  console.log(`[Destiny Compass] Using Model: ${model}`);
-  // ---------------------------
-
   if (!apiKey) {
     throw new Error("API Key is missing. Please set 'API_KEY' in your environment variables.");
   }
 
+  // --- STEP 1: Perform Accurate Local Calculation with True Solar Time ---
+  // We pass the longitude to adjust for True Solar Time.
+  const localBaZi = calculateAccurateBaZi(input.birthDate, input.birthTime, input.longitude);
+  
+  // Format the pillars for the prompt
+  const pillarsStr = localBaZi.pillars.map(p => `${p.name}: ${p.heavenlyStem}${p.earthlyBranch} (${p.elementStem}/${p.elementBranch})`).join(', ');
+  const elementsStr = localBaZi.fiveElements.map(e => `${e.label}: ${e.percentage}%`).join(', ');
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
+  const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
 
   // 2. Prompt Construction
-  const systemPrompt = `You are a grandmaster of Chinese Metaphysics, BaZi (Four Pillars of Destiny), and WuXing (Five Elements).
-Your task is to analyze birth data and return a STRICT JSON object. Do not output markdown code blocks (like \`\`\`json). Just output the raw JSON.`;
+  const systemPrompt = `You are a grandmaster of Chinese Metaphysics and BaZi (Four Pillars of Destiny).
+Your task is to INTERPRET the provided BaZi chart and return a STRICT JSON object. 
+Do NOT recalculate the pillars. Use the pillars provided in the prompt as the absolute truth (they have been calculated using True Solar Time).
+Do NOT output markdown code blocks. Just output the raw JSON.`;
 
   const userPrompt = `
-    The user is born on:
-    Date: ${input.birthDate}
-    Time: ${input.birthTime}
+    User Profile:
     Gender: ${genderStr}
+    Birth Place: ${locationStr} (True Solar Time applied)
+    Birth Time: ${input.birthDate} ${input.birthTime}
+
+    *** ACCURATE BAZI CHART (DO NOT RECALCULATE) ***
+    Pillars: ${pillarsStr}
+    Day Master: ${localBaZi.dayMaster} (${localBaZi.dayMasterElement})
+    Five Elements Strength: ${elementsStr}
     
-    Perform a detailed analysis in SIMPLIFIED CHINESE (简体中文):
-    1. Calculate the Four Pillars (Year, Month, Day, Hour).
-    2. Calculate the approximate percentage strength of the Five Elements (Wood, Fire, Earth, Metal, Water).
-    3. Identify the Day Master (Self Element).
-    4. Determine the Favorable Elements (Yong Shen).
-    5. Recommend 5 suitable cities.
-    6. Recommend 5 suitable career fields.
+    Perform a detailed interpretation in SIMPLIFIED CHINESE (简体中文) based on the chart above:
+    1. Determine the Favorable Elements (Yong Shen) and Unfavorable Elements based on the provided chart strength.
+    2. Write a short summary of the destiny.
+    3. Recommend 5 suitable cities based on the favorable elements.
+    4. Recommend 5 suitable career fields based on the favorable elements.
 
     REQUIRED JSON STRUCTURE:
     {
-      "pillars": [
-        { "name": "年柱", "heavenlyStem": "甲", "earthlyBranch": "子", "elementStem": "Wood", "elementBranch": "Water" },
-        { "name": "月柱", "heavenlyStem": "...", "earthlyBranch": "...", "elementStem": "...", "elementBranch": "..." },
-        { "name": "日柱", "heavenlyStem": "...", "earthlyBranch": "...", "elementStem": "...", "elementBranch": "..." },
-        { "name": "时柱", "heavenlyStem": "...", "earthlyBranch": "...", "elementStem": "...", "elementBranch": "..." }
-      ],
-      "fiveElements": [
-        { "element": "Wood", "percentage": 20, "label": "木" },
-        { "element": "Fire", "percentage": 30, "label": "火" },
-        { "element": "Earth", "percentage": 10, "label": "土" },
-        { "element": "Metal", "percentage": 10, "label": "金" },
-        { "element": "Water", "percentage": 30, "label": "水" }
-      ],
-      "dayMaster": "阳木 (甲)",
       "favorableElements": ["木", "火"],
       "unfavorableElements": ["金"],
       "summary": "Your mystical summary here in Chinese...",
       "suitableCities": [
-        { "title": "City Name", "description": "Reason...", "matchScore": 95 }
+        { "title": "City Name", "description": "Why this city fits the favorable element...", "matchScore": 95 }
       ],
       "suitableCareers": [
-        { "title": "Career Name", "description": "Reason...", "matchScore": 90 }
+        { "title": "Career Name", "description": "Why this career fits...", "matchScore": 90 }
       ]
     }
-
-    IMPORTANT: 
-    - 'element' fields in 'pillars' and 'fiveElements' MUST be English (Wood, Fire, Earth, Metal, Water) for the chart logic.
-    - All other text MUST be Simplified Chinese.
   `;
 
   try {
     // 3. API Call
-    // Normalize endpoint. 
     const endpoint = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const response = await fetch(endpoint, {
@@ -192,32 +160,12 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("API Error Response:", errorData);
       
-      if (response.status === 401) {
-        // Hint for DeepSeek users
-        if (baseUrl.includes('deepseek')) {
-           throw new Error(`Invalid API Key for DeepSeek. Ensure your key works at platform.deepseek.com.`); 
-        }
-        // Explicit hint for SiliconFlow users
-        if (baseUrl.includes('siliconflow')) {
-            throw new Error(`Invalid API Key. SiliconFlow rejected the token. Ensure your key starts with 'sk-' and has no spaces. (Provider: ${baseUrl})`);
-        }
-        throw new Error(`Invalid API Key. Access denied by ${baseUrl}.`);
-      }
-
-      if (response.status === 404) {
-        throw new Error(`Model '${model}' not found. Check if this model name is correct for provider ${baseUrl}.`);
-      }
-
-      if (response.status === 402) {
-          throw new Error("Insufficient Balance. Please check your API provider account.");
-      }
-
-      if (response.status === 429) throw new Error("Rate limit exceeded. The AI is busy, please try again later.");
+      if (response.status === 401) throw new Error(`Invalid API Key.`);
+      if (response.status === 429) throw new Error("Rate limit exceeded. The AI is busy.");
       if (response.status >= 500) throw new Error("The AI service is currently unavailable.");
       
-      throw new Error(errorData.error?.message || `API Error: ${response.statusText} (${baseUrl})`);
+      throw new Error(errorData.error?.message || `API Error: ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -227,9 +175,10 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
       throw new Error("Empty response from the AI model.");
     }
 
-    const parsed = parseJSON(content);
-    // Sanitize to prevent UI crashes if AI returns incomplete JSON
-    return sanitizeData(parsed);
+    const parsedAIResponse = parseJSON(content);
+    
+    // Merge the Accurate Local Data with the AI Interpretation
+    return sanitizeData(parsedAIResponse, localBaZi);
 
   } catch (error: any) {
     console.error("AI Analysis Error:", error);

@@ -2,6 +2,9 @@ export interface UserInput {
   gender: 'male' | 'female';
   birthDate: string; // YYYY-MM-DD
   birthTime: string; // HH:mm
+  province?: string;
+  city?: string;
+  longitude?: number; // E.g. 116.40 for Beijing. Used for True Solar Time.
 }
 
 export interface ElementData {
