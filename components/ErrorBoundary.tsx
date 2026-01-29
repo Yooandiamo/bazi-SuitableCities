@@ -11,6 +11,14 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
+  // Explicitly declare props to avoid TypeScript error in some environments
+  public readonly props: Props;
+
+  constructor(props: Props) {
+    super(props);
+    this.props = props;
+  }
+
   public state: State = {
     hasError: false,
     error: null,

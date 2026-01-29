@@ -44,7 +44,7 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
   };
 };
 
-// 2. Main Analysis Function
+// 2. Main Analysis Function (Gemini Implementation)
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
   // Validate API Key presence
   const apiKey = process.env.API_KEY;
@@ -60,6 +60,8 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   const elementsStr = localBaZi.fiveElements.map(e => `${e.label}: ${e.percentage}%`).join(', ');
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
+
+  const systemPrompt = `你是一位精通传统八字命理的大师。请基于用户提供的八字排盘数据进行分析。`;
 
   const userPrompt = `
     用户信息:
@@ -83,12 +85,13 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   try {
     const ai = new GoogleGenAI({ apiKey });
     
+    // Using gemini-3-pro-preview for complex reasoning tasks
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: userPrompt,
       config: {
-        systemInstruction: "你是一位精通传统八字命理的大师。请基于用户提供的八字排盘数据进行分析。",
-        responseMimeType: "application/json",
+        systemInstruction: systemPrompt,
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -101,43 +104,42 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
               items: { type: Type.STRING } 
             },
             summary: { type: Type.STRING },
-            suitableCities: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
+            suitableCities: { 
+              type: Type.ARRAY, 
+              items: { 
+                type: Type.OBJECT, 
                 properties: {
                   title: { type: Type.STRING },
                   description: { type: Type.STRING },
                   matchScore: { type: Type.NUMBER }
                 }
-              }
+              } 
             },
-            suitableCareers: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
+            suitableCareers: { 
+              type: Type.ARRAY, 
+              items: { 
+                type: Type.OBJECT, 
                 properties: {
                   title: { type: Type.STRING },
                   description: { type: Type.STRING },
                   matchScore: { type: Type.NUMBER }
                 }
-              }
+              } 
             }
-          },
-          required: ["favorableElements", "unfavorableElements", "summary", "suitableCities", "suitableCareers"]
+          }
         }
       }
     });
 
-    const content = response.text;
+    const jsonText = response.text;
     
-    if (!content) throw new Error("Gemini 返回了空内容");
+    if (!jsonText) throw new Error("API 返回了空内容");
 
     let parsedAIResponse;
     try {
-        parsedAIResponse = JSON.parse(content);
+        parsedAIResponse = JSON.parse(jsonText);
     } catch (e) {
-        console.error("JSON Parse Error:", e, content);
+        console.error("JSON Parse Error:", e, jsonText);
         throw new Error("无法解析 AI 返回的数据格式");
     }
     
