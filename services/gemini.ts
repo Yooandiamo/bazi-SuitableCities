@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { UserInput, DestinyAnalysis, Recommendation } from "../types";
 import { calculateAccurateBaZi } from "../utils/baziHelper";
 
@@ -82,7 +82,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   `;
 
   // 3. Schema Definition
-  const schema: Schema = {
+  const schema = {
     type: Type.OBJECT,
     properties: {
       favorableElements: {
