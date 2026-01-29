@@ -1,5 +1,3 @@
-// /// <reference types="vite/client" />
-
 // Shim for asset imports when vite/client types are missing
 declare module '*.svg' {
   import * as React from 'react';
