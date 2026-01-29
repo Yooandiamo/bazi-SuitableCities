@@ -35,7 +35,8 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
       <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
         
-        <div className="grid grid-cols-2 gap-4">
+        {/* Changed from grid-cols-2 to grid-cols-1 md:grid-cols-2 for responsive layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2">出生日期 (Date)</label>
             <input
