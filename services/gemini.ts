@@ -22,9 +22,25 @@ const parseJSON = (text: string) => {
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
   // 1. Configuration Validation
   const apiKey = process.env.API_KEY;
-  // Default to DeepSeek if not provided, as it's excellent for Chinese metaphysics
-  const baseUrl = process.env.API_BASE_URL || "https://api.deepseek.com"; 
-  const model = process.env.AI_MODEL || "deepseek-chat";
+  
+  // Logic to determine Base URL
+  // We now default to SiliconFlow via vite.config.ts if no env var is present
+  let baseUrl = process.env.API_BASE_URL;
+  let model = process.env.AI_MODEL;
+
+  // Fallback in case vite.config.ts didn't inject (shouldn't happen, but safe to have)
+  if (!baseUrl || baseUrl === "undefined") {
+     baseUrl = "https://api.siliconflow.cn/v1"; 
+  }
+  
+  if (!model || model === "undefined") {
+     model = "deepseek-ai/DeepSeek-V3";
+  }
+
+  // --- DEBUG INFO FOR USER ---
+  console.log(`[Destiny Compass] Using API Provider: ${baseUrl}`);
+  console.log(`[Destiny Compass] Using Model: ${model}`);
+  // ---------------------------
 
   if (!apiKey) {
     throw new Error("API Key is missing. Please set 'API_KEY' in your environment variables.");
@@ -33,7 +49,6 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
 
   // 2. Prompt Construction
-  // We include the schema definition directly in the prompt for high compatibility across different LLMs
   const systemPrompt = `You are a grandmaster of Chinese Metaphysics, BaZi (Four Pillars of Destiny), and WuXing (Five Elements).
 Your task is to analyze birth data and return a STRICT JSON object. Do not output markdown code blocks (like \`\`\`json). Just output the raw JSON.`;
 
@@ -84,8 +99,8 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
   `;
 
   try {
-    // 3. API Call using standard fetch (compatible with DeepSeek, OpenAI, Moonshot, etc.)
-    // We append /chat/completions to the base URL if it's missing, assuming standard OpenAI format
+    // 3. API Call
+    // Normalize endpoint. 
     const endpoint = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const response = await fetch(endpoint, {
@@ -100,8 +115,8 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        temperature: 1.3, // Higher temp for DeepSeek usually yields better creative/reasoning results, adjust as needed
-        response_format: { type: "json_object" }, // Enforce JSON mode if supported
+        temperature: 1.3,
+        response_format: { type: "json_object" },
         stream: false
       })
     });
@@ -110,13 +125,18 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
       const errorData = await response.json().catch(() => ({}));
       console.error("API Error Response:", errorData);
       
-      if (response.status === 401) throw new Error("Invalid API Key.");
-      if (response.status === 402) throw new Error("Insufficient Balance (No Credits).");
-      if (response.status === 404) throw new Error(`Model '${model}' not found or endpoint incorrect.`);
-      if (response.status === 429) throw new Error("Rate limit exceeded. Please try again later.");
+      if (response.status === 401) {
+        throw new Error(`Invalid API Key. Access denied by ${baseUrl}. Please check your SiliconFlow API Key in Vercel.`);
+      }
+
+      if (response.status === 404) {
+        throw new Error(`Model '${model}' not found. Check if this model name is correct for provider ${baseUrl}.`);
+      }
+
+      if (response.status === 429) throw new Error("Rate limit exceeded. The AI is busy, please try again later.");
       if (response.status >= 500) throw new Error("The AI service is currently unavailable.");
       
-      throw new Error(errorData.error?.message || `API Error: ${response.statusText}`);
+      throw new Error(errorData.error?.message || `API Error: ${response.statusText} (${baseUrl})`);
     }
 
     const data = await response.json();
@@ -130,6 +150,6 @@ Your task is to analyze birth data and return a STRICT JSON object. Do not outpu
 
   } catch (error: any) {
     console.error("AI Analysis Error:", error);
-    throw error; // Re-throw to be handled by the UI
+    throw error;
   }
 };

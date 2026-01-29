@@ -11,8 +11,9 @@ export default defineConfig(({ mode }) => {
     define: {
       // Expose these variables to the client-side code
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
-      'process.env.API_BASE_URL': JSON.stringify(env.API_BASE_URL || 'https://api.deepseek.com'),
-      'process.env.AI_MODEL': JSON.stringify(env.AI_MODEL || 'deepseek-chat')
+      // Default to SiliconFlow (硅基流动) as requested by the user for easier Vercel deployment
+      'process.env.API_BASE_URL': JSON.stringify(env.API_BASE_URL || 'https://api.siliconflow.cn/v1'),
+      'process.env.AI_MODEL': JSON.stringify(env.AI_MODEL || 'deepseek-ai/DeepSeek-V3')
     }
   };
 });
