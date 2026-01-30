@@ -1,6 +1,6 @@
 import { UserInput, DestinyAnalysis, Recommendation } from "../types";
 import { calculateAccurateBaZi } from "../utils/baziHelper";
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 // 1. Data Sanitization Helper
 const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
@@ -82,7 +82,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
     4. 推荐 5 个最适合的职业方向。
   `;
 
-  const responseSchema: Schema = {
+  const responseSchema = {
     type: Type.OBJECT,
     properties: {
       favorableElements: {
