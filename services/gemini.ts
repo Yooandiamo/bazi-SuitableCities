@@ -1,5 +1,6 @@
 import { UserInput, DestinyAnalysis, Recommendation } from "../types";
 import { calculateAccurateBaZi } from "../utils/baziHelper";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 
 // 1. Data Sanitization Helper
 const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
@@ -43,12 +44,12 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
   };
 };
 
-// 2. Main Analysis Function (DeepSeek Implementation)
+// 2. Main Analysis Function (Gemini Implementation)
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
   // Validate API Key presence
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error("未配置 API Key。请在环境配置中添加 DeepSeek API Key。");
+  // Note: key is accessed directly in GoogleGenAI constructor, but we check here for early user feedback
+  if (!process.env.API_KEY || process.env.API_KEY.trim() === '') {
+    throw new Error("未配置 API Key。请在环境配置中添加 Google API Key。");
   }
 
   // Step 1: Local Calculation (True Solar Time)
@@ -60,17 +61,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
 
-  const systemPrompt = `你是一位精通传统八字命理的大师。请基于用户提供的八字排盘数据进行分析。
-  必须以严格的 JSON 格式输出，不要包含 Markdown 格式（如 \`\`\`json），不要包含任何额外的解释文本。
-  
-  请严格按照以下 JSON 结构返回数据:
-  {
-    "favorableElements": ["木", "火"],
-    "unfavorableElements": ["金"],
-    "summary": "50-80字的命理摘要",
-    "suitableCities": [{"title": "城市名", "description": "理由", "matchScore": 90}],
-    "suitableCareers": [{"title": "职业名", "description": "理由", "matchScore": 95}]
-  }`;
+  const systemInstruction = "你是一位精通传统八字命理的大师。请基于用户提供的八字排盘数据进行分析。必须以严格的 JSON 格式输出，不要包含 Markdown 格式，不要包含任何额外的解释文本。";
 
   const userPrompt = `
     用户信息:
@@ -91,46 +82,71 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
     4. 推荐 5 个最适合的职业方向。
   `;
 
-  try {
-    // Step 2: Call DeepSeek API directly via Fetch
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+  const responseSchema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      favorableElements: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+        description: "List of favorable elements (喜用神)",
       },
-      body: JSON.stringify({
-        model: 'deepseek-chat', 
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: 'json_object' }, // DeepSeek supports JSON mode
-        temperature: 1.2
-      })
+      unfavorableElements: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+        description: "List of unfavorable elements (忌神)",
+      },
+      summary: {
+        type: Type.STRING,
+        description: "50-80字的命理摘要",
+      },
+      suitableCities: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            matchScore: { type: Type.NUMBER },
+          },
+          required: ["title", "description", "matchScore"],
+        },
+      },
+      suitableCareers: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            matchScore: { type: Type.NUMBER },
+          },
+          required: ["title", "description", "matchScore"],
+        },
+      },
+    },
+    required: ["favorableElements", "unfavorableElements", "summary", "suitableCities", "suitableCareers"],
+  };
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+        temperature: 1,
+      }
     });
 
-    if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        console.error("DeepSeek API Error:", response.status, errData);
-        
-        if (response.status === 401) throw new Error("DeepSeek API Key 无效。请检查 Key 是否正确。");
-        if (response.status === 402) throw new Error("DeepSeek 账户余额不足。");
-        if (response.status === 429) throw new Error("请求过于频繁，请稍后重试。");
-        if (response.status >= 500) throw new Error("DeepSeek 服务器暂时不可用。");
-        
-        throw new Error(`API 请求失败: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = response.text;
     
     if (!content) throw new Error("API 返回了空内容");
 
     let parsedAIResponse;
     try {
-        const cleanedText = content.replace(/```json\n?|\n?```/g, '').trim();
-        parsedAIResponse = JSON.parse(cleanedText);
+        parsedAIResponse = JSON.parse(content);
     } catch (e) {
         console.error("JSON Parse Error:", e, content);
         throw new Error("无法解析 AI 返回的数据格式");

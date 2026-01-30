@@ -1,3 +1,4 @@
+// Reference to vite/client removed to avoid type errors in environments without Vite types installed.
 // /// <reference types="vite/client" />
 
 // Declare untyped third-party modules
