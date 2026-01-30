@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserInput } from '../types';
 import { Compass, Sparkles, User, UserRound } from 'lucide-react';
-import { CHINA_CITIES, ProvinceInfo, CityInfo } from '../utils/cityData';
+import { CHINA_CITIES, CityInfo } from '../utils/cityData';
 
 interface InputFormProps {
   onSubmit: (data: UserInput) => void;
@@ -83,22 +83,22 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
         {/* Date and Time */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2">出生日期 (Date)</label>
+            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">出生日期 (Date)</label>
             <input
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all [color-scheme:dark]"
+              className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all [color-scheme:dark] text-center appearance-none"
               required
             />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2">出生时间 (Time)</label>
+            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">出生时间 (Time)</label>
             <input
               type="time"
               value={birthTime}
               onChange={(e) => setBirthTime(e.target.value)}
-              className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all [color-scheme:dark]"
+              className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all [color-scheme:dark] text-center appearance-none"
               required
             />
           </div>
@@ -106,14 +106,14 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
         {/* Location Selector */}
         <div>
-            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2">
+            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">
                 出生地点 (Location) <span className="text-slate-600 ml-1 text-[10px] normal-case">用于计算真太阳时</span>
             </label>
             <div className="grid grid-cols-2 gap-4">
                 <select 
                     value={selectedProvince}
                     onChange={(e) => setSelectedProvince(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 appearance-none"
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 appearance-none text-center"
                     required
                 >
                     <option value="" disabled>省份/地区</option>
@@ -124,7 +124,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
                 <select 
                     value={selectedCity}
                     onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 appearance-none"
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 appearance-none text-center"
                     required
                     disabled={!selectedProvince}
                 >
@@ -138,7 +138,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
         {/* Gender */}
         <div>
-           <label className="block text-xs uppercase tracking-widest text-slate-400 mb-3">性别 (Gender)</label>
+           <label className="block text-xs uppercase tracking-widest text-slate-400 mb-3 text-center">性别 (Gender)</label>
            <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
