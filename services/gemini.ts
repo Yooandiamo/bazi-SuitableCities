@@ -47,7 +47,6 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
 // 2. Main Analysis Function (Gemini Implementation)
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
   // Validate API Key presence
-  // Note: key is accessed directly in GoogleGenAI constructor, but we check here for early user feedback
   if (!process.env.API_KEY || process.env.API_KEY.trim() === '') {
     throw new Error("未配置 API Key。请在环境配置中添加 Google API Key。");
   }
@@ -82,6 +81,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
     4. 推荐 5 个最适合的职业方向。
   `;
 
+  // Define schema manually to ensure compatibility
   const responseSchema = {
     type: Type.OBJECT,
     properties: {
@@ -142,11 +142,17 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
 
     const content = response.text;
     
-    if (!content) throw new Error("API 返回了空内容");
+    if (!content) {
+      console.error("Empty content received from Gemini API", response);
+      throw new Error("API 返回了空内容");
+    }
 
     let parsedAIResponse;
     try {
-        parsedAIResponse = JSON.parse(content);
+        // Attempt to parse. response.text usually returns string, but sometimes might wrap in ```json ``` 
+        // Although responseMimeType: "application/json" should prevent markdown wrapping, it's good to be safe.
+        const cleanedContent = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        parsedAIResponse = JSON.parse(cleanedContent);
     } catch (e) {
         console.error("JSON Parse Error:", e, content);
         throw new Error("无法解析 AI 返回的数据格式");
@@ -155,7 +161,11 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
     return sanitizeData(parsedAIResponse, localBaZi);
 
   } catch (error: any) {
-    console.error("Analysis Failed:", error);
+    console.error("Gemini Analysis Failed:", error);
+    // Provide a more user-friendly error message for common issues
+    if (error.message?.includes('LOAD FAILED') || error.message?.includes('fetch') || error.message?.includes('Failed to fetch')) {
+       throw new Error("网络连接失败。请检查您的网络设置（如 VPN 或代理），或者 API Key 是否有效。");
+    }
     throw new Error(error.message || "无法连接到命运分析服务，请检查网络或稍后再试。");
   }
 };
