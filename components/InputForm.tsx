@@ -182,7 +182,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
                 type="text"
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
-                placeholder="在此输入解锁码 (可选，有码直出结果)"
+                placeholder="在此输入解锁码"
                 className="w-full h-12 bg-black/40 border border-slate-600 rounded-lg pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono tracking-wide"
             />
         </div>
