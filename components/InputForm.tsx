@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { UserInput } from '../types';
-import { Compass, Sparkles, User, UserRound } from 'lucide-react';
+import { Compass, Sparkles, User, UserRound, KeyRound } from 'lucide-react';
 import { CHINA_CITIES, CityInfo } from '../utils/cityData';
 
 interface InputFormProps {
-  onSubmit: (data: UserInput) => void;
+  onSubmit: (data: UserInput, accessCode?: string) => void;
   isLoading: boolean;
 }
 
@@ -18,6 +18,9 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [availableCities, setAvailableCities] = useState<CityInfo[]>([]);
   const [longitude, setLongitude] = useState<number | undefined>(undefined);
+
+  // Access Code State
+  const [accessCode, setAccessCode] = useState('');
 
   // Update cities when province changes
   useEffect(() => {
@@ -51,14 +54,17 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (birthDate && birthTime) {
-      onSubmit({ 
-          gender, 
-          birthDate, 
-          birthTime,
-          province: selectedProvince,
-          city: selectedCity,
-          longitude
-      });
+      onSubmit(
+          { 
+            gender, 
+            birthDate, 
+            birthTime,
+            province: selectedProvince,
+            city: selectedCity,
+            longitude
+          }, 
+          accessCode // Pass the code if entered
+      );
     }
   };
 
@@ -74,7 +80,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
         </div>
         <h2 className="text-2xl font-bold text-amber-50 tracking-wider font-serif">五行八字分析</h2>
         <p className="text-slate-400 text-sm mt-2 font-light">
-            输入出生信息与地点，以获取精准的真太阳时排盘
+            输入出生信息，探寻你的本命磁场
         </p>
       </div>
 
@@ -107,7 +113,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
         {/* Location Selector */}
         <div>
             <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">
-                出生地点 (Location) <span className="text-slate-600 ml-1 text-[10px] normal-case">用于计算真太阳时</span>
+                出生地点 (Location) <span className="text-slate-600 ml-1 text-[10px] normal-case">用于真太阳时校正</span>
             </label>
             <div className="grid grid-cols-2 gap-4">
                 <select 
@@ -167,6 +173,20 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
            </div>
         </div>
 
+        {/* Access Code Input (New) */}
+        <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <KeyRound className="h-4 w-4 text-amber-500/70" />
+            </div>
+            <input
+                type="text"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                placeholder="在此输入解锁码 (可选，有码直出结果)"
+                className="w-full h-12 bg-black/40 border border-slate-600 rounded-lg pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono tracking-wide"
+            />
+        </div>
+
         <button
           type="submit"
           disabled={isLoading}
@@ -184,7 +204,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
             </span>
           ) : (
             <>
-              开始排盘分析
+              {accessCode.trim().length > 0 ? "立即解锁天机" : "开始免费排盘"}
               <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
             </>
           )}

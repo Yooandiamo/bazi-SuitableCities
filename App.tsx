@@ -4,6 +4,7 @@ import ResultsView from './components/ResultsView';
 import { UserInput, DestinyAnalysis, LoadingState } from './types';
 import { getLocalAnalysis, analyzeDestinyAI } from './services/gemini';
 import { Loader2 } from 'lucide-react';
+import { verifyCode } from './utils/accessCodes';
 
 const App: React.FC = () => {
   const [loadingState, setLoadingState] = useState<LoadingState>(LoadingState.IDLE);
@@ -11,36 +12,81 @@ const App: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<DestinyAnalysis | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Step 1: Handle Initial Form Submit (Free Local Calculation)
-  const handleInitialAnalysis = async (input: UserInput) => {
+  // Handle Form Submit
+  const handleAnalysisStart = async (input: UserInput, accessCode?: string) => {
     setUserInput(input);
-    setLoadingState(LoadingState.CALCULATING_LOCAL);
     setErrorMsg(null);
     
-    // Simulate a brief calculation delay for UX
-    setTimeout(() => {
+    // 1. Always do local calculation first (fast)
+    let localData;
+    try {
+        localData = getLocalAnalysis(input);
+    } catch (err: any) {
+        console.error("Local Calc Error:", err);
+        setErrorMsg("排盘计算失败，请检查日期格式");
+        setLoadingState(LoadingState.ERROR);
+        return;
+    }
+
+    // 2. Check if user provided an access code upfront
+    const hasCode = accessCode && accessCode.trim().length > 0;
+
+    if (hasCode) {
+        // --- DIRECT UNLOCK MODE ---
+        // Validate strictly before even showing "Calculating" to give instant feedback
+        if (!verifyCode(accessCode!)) {
+            // If code is invalid, we could stop, OR we could just proceed to preview and show an error.
+            // Let's proceed to preview but maybe alert user? 
+            // Better UX: Just let the backend reject it or handle it in the next step.
+            // For now, let's assume if they entered something, they want to try unlocking.
+        }
+
+        setLoadingState(LoadingState.UNLOCKING); // Show "Interpreting..." state
+        
+        // Use the local data to seed the result while we fetch AI
+        setAnalysisResult({
+            ...localData,
+            isUnlocked: false 
+        });
+
         try {
-            const localData = getLocalAnalysis(input);
+            const fullResult = await analyzeDestinyAI(input, localData, accessCode!);
+            setAnalysisResult(fullResult);
+            setLoadingState(LoadingState.COMPLETE);
+        } catch (err: any) {
+            console.error("Direct Unlock Error:", err);
+            // If direct unlock fails, fall back to PREVIEW state so they can see the basic chart 
+            // and try entering the code again in the results view.
+            setAnalysisResult({
+                ...localData,
+                isUnlocked: false
+            });
+            setErrorMsg(err.message || "解锁失败，请检查卡密");
+            // We use PREVIEW here so they aren't stuck on a blank error screen; 
+            // they get the free value at least.
+            setLoadingState(LoadingState.PREVIEW);
+        }
+
+    } else {
+        // --- PREVIEW MODE (Old Behavior) ---
+        setLoadingState(LoadingState.CALCULATING_LOCAL);
+        
+        setTimeout(() => {
             setAnalysisResult({
                 ...localData,
                 isUnlocked: false // Locked by default
             });
             setLoadingState(LoadingState.PREVIEW);
-        } catch (err: any) {
-            console.error("Local Calc Error:", err);
-            setErrorMsg("排盘计算失败，请检查日期格式");
-            setLoadingState(LoadingState.ERROR);
-        }
-    }, 800);
+        }, 800);
+    }
   };
 
-  // Step 2: Handle Unlock (Paid AI Calculation)
+  // Handle Unlock from the Results Page (if they didn't enter code initially)
   const handleUnlock = async (code: string) => {
     if (!userInput || !analysisResult) return;
     
     setLoadingState(LoadingState.UNLOCKING);
     try {
-        // Pass the code to the AI service
         const fullResult = await analyzeDestinyAI(userInput, analysisResult, code);
         setAnalysisResult(fullResult);
         setLoadingState(LoadingState.COMPLETE);
@@ -48,9 +94,6 @@ const App: React.FC = () => {
         console.error("AI Error:", err);
         const message = err instanceof Error ? err.message : "解锁失败，请稍后重试";
         setErrorMsg(message);
-        // If error, go back to PREVIEW state so user can try again, 
-        // but showing the error via alert or temporary message would be better.
-        // For now, we use the error screen but allow "Retry" to go back.
         setLoadingState(LoadingState.ERROR);
     }
   };
@@ -79,9 +122,10 @@ const App: React.FC = () => {
       <main className="flex-grow w-full px-4 py-8 flex flex-col items-center justify-center relative z-10">
         
         {loadingState === LoadingState.IDLE && (
-          <InputForm onSubmit={handleInitialAnalysis} isLoading={false} />
+          <InputForm onSubmit={handleAnalysisStart} isLoading={false} />
         )}
 
+        {/* Loading State for PREVIEW generation */}
         {(loadingState === LoadingState.CALCULATING_LOCAL) && (
           <div className="text-center p-12 bg-slate-800/30 backdrop-blur-md rounded-2xl border border-slate-700/30">
              <div className="relative w-24 h-24 mx-auto mb-6">
@@ -94,6 +138,22 @@ const App: React.FC = () => {
           </div>
         )}
 
+        {/* Loading State for AI UNLOCKING */}
+        {(loadingState === LoadingState.UNLOCKING) && (
+           <div className="text-center p-12 bg-slate-800/30 backdrop-blur-md rounded-2xl border border-amber-500/30">
+              <div className="relative w-24 h-24 mx-auto mb-6">
+                 <div className="absolute inset-0 border-t-4 border-amber-500 rounded-full animate-spin"></div>
+                 <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+                 </div>
+              </div>
+              <h3 className="text-xl font-serif mb-2 text-amber-400">正在连通天机</h3>
+              <p className="text-slate-400 text-sm animate-pulse">深度分析命局... 寻找本命城市...</p>
+              <p className="text-slate-500 text-xs mt-4">(AI 推演可能需要 5-10 秒，请耐心等待)</p>
+           </div>
+        )}
+
+        {/* Error State */}
         {loadingState === LoadingState.ERROR && (
            <div className="text-center max-w-lg w-full p-8 bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-red-500/30 shadow-2xl">
               <h3 className="text-xl font-bold text-red-400 mb-4">分析中断</h3>
@@ -102,8 +162,6 @@ const App: React.FC = () => {
               </div>
               <button 
                 onClick={() => {
-                    // If we failed during unlocking, go back to preview (blurred result)
-                    // If we failed during local calc, go back to idle
                     if (analysisResult) {
                         setLoadingState(LoadingState.PREVIEW);
                     } else {
@@ -117,8 +175,8 @@ const App: React.FC = () => {
            </div>
         )}
 
-        {/* Show ResultsView for both PREVIEW (locked) and COMPLETE (unlocked) states, and also UNLOCKING (loading inside modal) */}
-        {(loadingState === LoadingState.PREVIEW || loadingState === LoadingState.COMPLETE || loadingState === LoadingState.UNLOCKING) && analysisResult && (
+        {/* Show ResultsView for PREVIEW and COMPLETE states */}
+        {(loadingState === LoadingState.PREVIEW || loadingState === LoadingState.COMPLETE) && analysisResult && (
           <ResultsView 
             data={analysisResult} 
             onUnlock={handleUnlock}
