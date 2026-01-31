@@ -55,8 +55,8 @@ export const ElementsRadarChart: React.FC<ElementsChartProps> = ({ data }) => {
   return (
     <div className="w-full h-64 md:h-80 relative">
       <ResponsiveContainer width="100%" height="100%">
-        {/* Adjusted cx to 45% to move chart slightly left, avoiding overlap with legend on right */}
-        <RadarChart cx="45%" cy="50%" outerRadius="70%" data={data}>
+        {/* Adjusted cx to 30% to move chart further left, ensuring no overlap with legend */}
+        <RadarChart cx="30%" cy="50%" outerRadius="70%" data={data}>
           <PolarGrid stroke="#334155" />
           <PolarAngleAxis 
             dataKey="label" 
