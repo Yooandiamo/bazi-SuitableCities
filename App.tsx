@@ -152,7 +152,6 @@ const App: React.FC = () => {
               </div>
               <h3 className="text-xl font-serif mb-2 text-amber-400">正在连通天机</h3>
               <p className="text-slate-400 text-sm animate-pulse">深度分析命局... 寻找本命城市...</p>
-              <p className="text-slate-500 text-xs mt-4">(AI 推演可能需要 5-10 秒，请耐心等待)</p>
            </div>
         )}
 
