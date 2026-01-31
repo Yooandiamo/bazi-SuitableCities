@@ -22,10 +22,11 @@ export interface Pillar {
   elementBranch: string;
 }
 
-export interface Recommendation {
-  title: string;
+export interface CityRecommendation {
+  name: string;
+  tags: string[]; // E.g. ["海滨", "慢节奏"]
   description: string;
-  matchScore: number;
+  score: number;
 }
 
 // Data calculated locally (Free)
@@ -42,8 +43,8 @@ export interface DestinyAnalysis extends LocalAnalysisData {
   favorableElements?: string[];
   unfavorableElements?: string[];
   summary?: string;
-  suitableCities?: Recommendation[];
-  suitableCareers?: Recommendation[];
+  suitableCities?: CityRecommendation[];
+  // Removed suitableCareers
 }
 
 export enum LoadingState {

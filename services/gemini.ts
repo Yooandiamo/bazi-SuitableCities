@@ -1,4 +1,4 @@
-import { UserInput, DestinyAnalysis, Recommendation, LocalAnalysisData } from "../types";
+import { UserInput, DestinyAnalysis, CityRecommendation, LocalAnalysisData } from "../types";
 import { calculateAccurateBaZi } from "../utils/baziHelper";
 
 // 1. Local Calculation Only (Free & Instant)
@@ -11,20 +11,14 @@ const sanitizeData = (aiData: any, localData: LocalAnalysisData): DestinyAnalysi
   const data = aiData && typeof aiData === 'object' ? aiData : {};
   const safeString = (val: any) => (val && typeof val === 'string') ? val : String(val || '');
   const safeNumber = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
+  const safeArray = (val: any) => (Array.isArray(val) ? val : []);
 
-  const suitableCities: Recommendation[] = Array.isArray(data.suitableCities)
+  const suitableCities: CityRecommendation[] = Array.isArray(data.suitableCities)
     ? data.suitableCities.map((c: any) => ({
-        title: safeString(c?.title),
+        name: safeString(c?.name),
+        tags: safeArray(c?.tags).map(safeString).slice(0, 4), // Limit to 4 tags
         description: safeString(c?.description),
-        matchScore: safeNumber(c?.matchScore)
-      }))
-    : [];
-    
-  const suitableCareers: Recommendation[] = Array.isArray(data.suitableCareers)
-    ? data.suitableCareers.map((c: any) => ({
-        title: safeString(c?.title),
-        description: safeString(c?.description),
-        matchScore: safeNumber(c?.matchScore)
+        score: safeNumber(c?.score)
       }))
     : [];
 
@@ -43,7 +37,6 @@ const sanitizeData = (aiData: any, localData: LocalAnalysisData): DestinyAnalysi
     unfavorableElements,
     summary: safeString(data.summary) || "暂无命理摘要。",
     suitableCities,
-    suitableCareers,
   };
 };
 
@@ -58,17 +51,19 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
 
   const systemInstruction = `你是一位精通传统八字命理的大师。请基于用户提供的八字排盘数据进行分析。
-请务必返回标准的 JSON 格式，不要包含 Markdown 代码块标记（如 \`\`\`json）。
+请务必返回标准的 JSON 格式，不要包含 Markdown 代码块标记。
 返回的 JSON 必须严格遵守以下结构：
 {
   "favorableElements": ["喜用神1", "喜用神2"],
   "unfavorableElements": ["忌神1", "忌神2"],
   "summary": "50-80字的命理摘要，风格神秘且具有启发性。",
   "suitableCities": [
-    { "title": "城市名", "description": "结合五行分析的推荐理由", "matchScore": 85 }
-  ],
-  "suitableCareers": [
-    { "title": "职业名", "description": "结合五行分析的推荐理由", "matchScore": 90 }
+    { 
+      "name": "城市名", 
+      "score": 98, 
+      "tags": ["城市特色关键词1", "城市特色关键词2", "城市特色关键词3"],
+      "description": "详细描述（100字左右）：为什么这个城市的气场旺该用户？结合五行、方位、气候等因素进行温情且有说服力的解读。" 
+    }
   ]
 }`;
 
@@ -85,10 +80,12 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
     
     任务:
     请进行详细的命运分析（使用简体中文）。
-    1. 根据五行强弱，精准判断"喜用神" (Favorable Elements) 和 "忌神" (Unfavorable Elements)。
+    1. 根据五行强弱，判断"喜用神"和"忌神"。
     2. 提供一段 50-80 字的命理摘要。
-    3. 推荐 5 个最适合发展的城市。
-    4. 推荐 5 个最适合的职业方向。
+    3. 重点推荐 5 个最适合发展的城市（中国境内）。
+       - 第 1 个城市必须是"本命城市"，请给出极高的匹配分（90以上），并提供非常详细的推荐理由，描述这个城市如何滋养用户，不用提及具体的“人格类型”（如不要说“你是自然型人格”），直接描述城市特质与用户的契合点。
+       - 后 4 个城市作为备选，分数递减。
+       - 每个城市提供 3-4 个短标签（例如：海滨风情、历史底蕴、节奏舒缓、创业热土、水木清华等）。
   `;
 
   try {
