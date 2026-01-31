@@ -1,8 +1,13 @@
-import { UserInput, DestinyAnalysis, Recommendation } from "../types";
+import { UserInput, DestinyAnalysis, Recommendation, LocalAnalysisData } from "../types";
 import { calculateAccurateBaZi } from "../utils/baziHelper";
 
-// 1. Data Sanitization Helper (Kept strictly for safety)
-const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
+// 1. Local Calculation Only (Free & Instant)
+export const getLocalAnalysis = (input: UserInput): LocalAnalysisData => {
+  return calculateAccurateBaZi(input.birthDate, input.birthTime, input.longitude);
+};
+
+// 2. Data Sanitization Helper
+const sanitizeData = (aiData: any, localData: LocalAnalysisData): DestinyAnalysis => {
   const data = aiData && typeof aiData === 'object' ? aiData : {};
   const safeString = (val: any) => (val && typeof val === 'string') ? val : String(val || '');
   const safeNumber = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
@@ -32,9 +37,8 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
     : [];
 
   return {
-    pillars: localData.pillars,
-    fiveElements: localData.fiveElements,
-    dayMaster: localData.dayMaster,
+    ...localData,
+    isUnlocked: true,
     favorableElements,
     unfavorableElements,
     summary: safeString(data.summary) || "暂无命理摘要。",
@@ -43,19 +47,13 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
   };
 };
 
-// 2. DeepSeek API Implementation
-export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
-  // Validate API Key
-  if (!process.env.API_KEY || process.env.API_KEY.trim() === '') {
-    throw new Error("未检测到 API Key。请在环境配置中添加 DeepSeek API Key。");
-  }
-
-  // Step 1: Local Calculation (True Solar Time)
-  const localBaZi = calculateAccurateBaZi(input.birthDate, input.birthTime, input.longitude);
+// 3. AI Analysis (Secure Backend Call)
+// Now accepts accessCode to send to backend for verification
+export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysisData, accessCode: string): Promise<DestinyAnalysis> => {
   
   // Prepare Prompt Data
-  const pillarsStr = localBaZi.pillars.map(p => `${p.name}: ${p.heavenlyStem}${p.earthlyBranch} (${p.elementStem}/${p.elementBranch})`).join(', ');
-  const elementsStr = localBaZi.fiveElements.map(e => `${e.label}: ${e.percentage}%`).join(', ');
+  const pillarsStr = localData.pillars.map(p => `${p.name}: ${p.heavenlyStem}${p.earthlyBranch} (${p.elementStem}/${p.elementBranch})`).join(', ');
+  const elementsStr = localData.fiveElements.map(e => `${e.label}: ${e.percentage}%`).join(', ');
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
 
@@ -65,12 +63,12 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
 {
   "favorableElements": ["喜用神1", "喜用神2"],
   "unfavorableElements": ["忌神1", "忌神2"],
-  "summary": "50-80字的命理摘要",
+  "summary": "50-80字的命理摘要，风格神秘且具有启发性。",
   "suitableCities": [
-    { "title": "城市名", "description": "推荐理由", "matchScore": 85 }
+    { "title": "城市名", "description": "结合五行分析的推荐理由", "matchScore": 85 }
   ],
   "suitableCareers": [
-    { "title": "职业名", "description": "推荐理由", "matchScore": 90 }
+    { "title": "职业名", "description": "结合五行分析的推荐理由", "matchScore": 90 }
   ]
 }`;
 
@@ -82,7 +80,7 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
 
     *** 八字排盘数据 ***
     四柱: ${pillarsStr}
-    日主: ${localBaZi.dayMaster} (${localBaZi.dayMasterElement})
+    日主: ${localData.dayMaster} (${localData.dayMasterElement})
     五行能量分布: ${elementsStr}
     
     任务:
@@ -94,46 +92,37 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
   `;
 
   try {
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
+    // CHANGE: Request our own backend instead of DeepSeek directly
+    const response = await fetch("/api/analyze", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.API_KEY}`
       },
       body: JSON.stringify({
-        model: "deepseek-chat", // V3 model
         messages: [
           { role: "system", content: systemInstruction },
           { role: "user", content: userPrompt }
         ],
-        response_format: { type: "json_object" }, // Enforce JSON mode
-        temperature: 1.1, // Slightly creative for fortune telling
-        max_tokens: 2000
+        accessCode: accessCode // Send code to backend for verification
       })
     });
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("DeepSeek API Error:", errorData);
-        if (response.status === 401) {
-            throw new Error("API Key 无效。请检查您的 DeepSeek API Key。");
+        // Handle specific backend errors
+        if (response.status === 403) {
+            throw new Error("卡密无效，请检查后重新输入。");
         }
-        if (response.status === 402) {
-            throw new Error("API 余额不足。请检查您的 DeepSeek 账户余额。");
-        }
-        throw new Error(errorData.error?.message || `API 请求失败: ${response.status}`);
+        throw new Error(errorData.error || `请求失败: ${response.status}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     
-    if (!content) {
-      throw new Error("API 返回了空内容");
-    }
+    if (!content) throw new Error("API 返回了空内容");
 
     let parsedAIResponse;
     try {
-        // DeepSeek usually adheres to JSON mode, but we double check
         const cleanedContent = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
         parsedAIResponse = JSON.parse(cleanedContent);
     } catch (e) {
@@ -141,10 +130,10 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
         throw new Error("无法解析 AI 返回的数据格式");
     }
     
-    return sanitizeData(parsedAIResponse, localBaZi);
+    return sanitizeData(parsedAIResponse, localData);
 
   } catch (error: any) {
     console.error("Analysis Failed:", error);
-    throw new Error(error.message || "命理分析服务暂时不可用，请检查网络或稍后再试。");
+    throw new Error(error.message || "命理分析服务暂时不可用。");
   }
 };

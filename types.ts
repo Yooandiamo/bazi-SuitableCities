@@ -1,3 +1,4 @@
+
 export interface UserInput {
   gender: 'male' | 'female';
   birthDate: string; // YYYY-MM-DD
@@ -27,20 +28,29 @@ export interface Recommendation {
   matchScore: number;
 }
 
-export interface DestinyAnalysis {
+// Data calculated locally (Free)
+export interface LocalAnalysisData {
   pillars: Pillar[];
   fiveElements: ElementData[];
-  dayMaster: string; // The Day Heavenly Stem
-  favorableElements: string[];
-  unfavorableElements: string[];
-  summary: string;
-  suitableCities: Recommendation[];
-  suitableCareers: Recommendation[];
+  dayMaster: string;
+  dayMasterElement: string;
+}
+
+// Full Data including AI (Paid/Locked)
+export interface DestinyAnalysis extends LocalAnalysisData {
+  isUnlocked: boolean; // New flag
+  favorableElements?: string[];
+  unfavorableElements?: string[];
+  summary?: string;
+  suitableCities?: Recommendation[];
+  suitableCareers?: Recommendation[];
 }
 
 export enum LoadingState {
   IDLE = 'IDLE',
-  ANALYZING = 'ANALYZING',
+  CALCULATING_LOCAL = 'CALCULATING_LOCAL',
+  PREVIEW = 'PREVIEW', // Showing blurred results
+  UNLOCKING = 'UNLOCKING', // Calling AI
   COMPLETE = 'COMPLETE',
   ERROR = 'ERROR',
 }
