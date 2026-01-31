@@ -51,7 +51,8 @@ export enum LoadingState {
   IDLE = 'IDLE',
   CALCULATING_LOCAL = 'CALCULATING_LOCAL',
   PREVIEW = 'PREVIEW', // Showing blurred results
-  UNLOCKING = 'UNLOCKING', // Calling AI
+  UNLOCKING = 'UNLOCKING', // Full screen loader (Direct Unlock)
+  UPGRADING = 'UPGRADING', // Inline loader (Unlock from Preview)
   COMPLETE = 'COMPLETE',
   ERROR = 'ERROR',
 }

@@ -35,13 +35,10 @@ const App: React.FC = () => {
         // --- DIRECT UNLOCK MODE ---
         // Validate strictly before even showing "Calculating" to give instant feedback
         if (!verifyCode(accessCode!)) {
-            // If code is invalid, we could stop, OR we could just proceed to preview and show an error.
-            // Let's proceed to preview but maybe alert user? 
-            // Better UX: Just let the backend reject it or handle it in the next step.
-            // For now, let's assume if they entered something, they want to try unlocking.
+            // Optional: Handle invalid code UI feedback here if desired
         }
 
-        setLoadingState(LoadingState.UNLOCKING); // Show "Interpreting..." state
+        setLoadingState(LoadingState.UNLOCKING); // Show full screen "Interpreting..." state
         
         // Use the local data to seed the result while we fetch AI
         setAnalysisResult({
@@ -62,8 +59,6 @@ const App: React.FC = () => {
                 isUnlocked: false
             });
             setErrorMsg(err.message || "解锁失败，请检查卡密");
-            // We use PREVIEW here so they aren't stuck on a blank error screen; 
-            // they get the free value at least.
             setLoadingState(LoadingState.PREVIEW);
         }
 
@@ -85,7 +80,8 @@ const App: React.FC = () => {
   const handleUnlock = async (code: string) => {
     if (!userInput || !analysisResult) return;
     
-    setLoadingState(LoadingState.UNLOCKING);
+    // Change to UPGRADING to keep ResultsView visible but show spinner on button
+    setLoadingState(LoadingState.UPGRADING);
     try {
         const fullResult = await analyzeDestinyAI(userInput, analysisResult, code);
         setAnalysisResult(fullResult);
@@ -94,6 +90,13 @@ const App: React.FC = () => {
         console.error("AI Error:", err);
         const message = err instanceof Error ? err.message : "解锁失败，请稍后重试";
         setErrorMsg(message);
+        // On error, go back to PREVIEW so they can retry
+        setLoadingState(LoadingState.PREVIEW);
+        // Note: We might want a dedicated Error toast instead of full screen error, 
+        // but for now relying on existing error state handling or adding alert could work.
+        // Given current structure, let's trigger the Error Screen if it fails, 
+        // or just revert to PREVIEW and maybe show alert? 
+        // Let's set to ERROR state to be safe and visible.
         setLoadingState(LoadingState.ERROR);
     }
   };
@@ -138,7 +141,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Loading State for AI UNLOCKING */}
+        {/* Loading State for AI UNLOCKING (Direct Full Screen) */}
         {(loadingState === LoadingState.UNLOCKING) && (
            <div className="text-center p-12 bg-slate-800/30 backdrop-blur-md rounded-2xl border border-amber-500/30">
               <div className="relative w-24 h-24 mx-auto mb-6">
@@ -175,13 +178,13 @@ const App: React.FC = () => {
            </div>
         )}
 
-        {/* Show ResultsView for PREVIEW and COMPLETE states */}
-        {(loadingState === LoadingState.PREVIEW || loadingState === LoadingState.COMPLETE) && analysisResult && (
+        {/* Show ResultsView for PREVIEW, UPGRADING, and COMPLETE states */}
+        {(loadingState === LoadingState.PREVIEW || loadingState === LoadingState.COMPLETE || loadingState === LoadingState.UPGRADING) && analysisResult && (
           <ResultsView 
             data={analysisResult} 
             onUnlock={handleUnlock}
             onReset={handleReset}
-            isUnlocking={loadingState === LoadingState.UNLOCKING}
+            isUnlocking={loadingState === LoadingState.UPGRADING}
           />
         )}
 
