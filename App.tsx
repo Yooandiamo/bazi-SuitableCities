@@ -86,7 +86,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="w-full p-6 text-center text-slate-600 text-xs z-10 border-t border-slate-800/50">
-        <p>本应用使用人工智能解读传统命理。结果仅供娱乐与参考。</p>
+        <p>结果仅供娱乐与参考。</p>
       </footer>
     </div>
   );
