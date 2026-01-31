@@ -50,19 +50,28 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
 
-  const systemInstruction = `你是一位精通传统八字命理的大师。请基于用户提供的八字排盘数据进行分析。
-请务必返回标准的 JSON 格式，不要包含 Markdown 代码块标记。
-返回的 JSON 必须严格遵守以下结构：
+  const systemInstruction = `你是一位精通"地理五行"和"八字喜忌"的命理大师。
+核心逻辑：
+1. 先计算用户的【喜用神】（Favorable Elements）。
+2. 根据【喜用神】寻找对应的地理方位：
+   - 喜【木】：宜往东方（如上海、杭州、青岛）。
+   - 喜【火】：宜往南方（如深圳、广州、三亚、重庆-火炉）。
+   - 喜【土】：宜往中原或内陆（如西安、郑州、成都）。
+   - 喜【金】：宜往西方（但中国地理西方较偏，通常取金融中心或西部大城，如乌鲁木齐、或是由于"金生水"取沿海发达城市）。
+   - 喜【水】：宜往北方或水边（如北京、哈尔滨、大连）。
+3. **必须**基于上述逻辑推荐城市，不能随机推荐。推荐理由必须明确指出"因为你喜X，而该城市属Y..."。
+
+返回格式必须为纯 JSON，不要带 markdown 标记：
 {
-  "favorableElements": ["喜用神1", "喜用神2"],
+  "favorableElements": ["喜神1", "喜神2"],
   "unfavorableElements": ["忌神1", "忌神2"],
-  "summary": "50-80字的命理摘要，风格神秘且具有启发性。",
+  "summary": "50-80字的命理摘要。",
   "suitableCities": [
     { 
       "name": "城市名", 
-      "score": 98, 
-      "tags": ["城市特色关键词1", "城市特色关键词2", "城市特色关键词3"],
-      "description": "详细描述（100字左右）：为什么这个城市的气场旺该用户？结合五行、方位、气候等因素进行温情且有说服力的解读。" 
+      "score": 95, 
+      "tags": ["标签1", "标签2"],
+      "description": "详细理由..." 
     }
   ]
 }`;
@@ -71,7 +80,7 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
     用户信息:
     性别: ${genderStr}
     出生地: ${locationStr}
-    出生时间: ${input.birthDate} ${input.birthTime} (已校正真太阳时)
+    出生时间: ${input.birthDate} ${input.birthTime} (真太阳时)
 
     *** 八字排盘数据 ***
     四柱: ${pillarsStr}
@@ -79,17 +88,15 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
     五行能量分布: ${elementsStr}
     
     任务:
-    请进行详细的命运分析（使用简体中文）。
-    1. 根据五行强弱，判断"喜用神"和"忌神"。
-    2. 提供一段 50-80 字的命理摘要。
-    3. 重点推荐 5 个最适合发展的城市（中国境内）。
-       - 第 1 个城市必须是"本命城市"，请给出极高的匹配分（90以上），并提供非常详细的推荐理由，描述这个城市如何滋养用户，不用提及具体的“人格类型”（如不要说“你是自然型人格”），直接描述城市特质与用户的契合点。
-       - 后 4 个城市作为备选，分数递减。
-       - 每个城市提供 3-4 个短标签（例如：海滨风情、历史底蕴、节奏舒缓、创业热土、水木清华等）。
+    1. 判断喜用神。
+    2. 推荐 5 个最适合发展的中国城市。
+       - **第 1 名（本命城市）**：分数 90+。描述约 80-100 字。重点解释五行与方位的契合度（例如："你八字火弱，深圳位于南方离卦，火气最旺，能补足你的..."）。
+       - **第 2-5 名（备选城市）**：分数 80-89。描述约 30-50 字。简要说明该城市为何适合（如："位于东方甲乙木地，利于你的..."）。
+       - 不要提及"xx型人格"。
+       - 标签使用 3-4 个短词（如：南方火旺、创业热土、安逸巴适）。
   `;
 
   try {
-    // CHANGE: Request our own backend instead of DeepSeek directly
     const response = await fetch("/api/analyze", {
       method: "POST",
       headers: {
@@ -100,13 +107,12 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
           { role: "system", content: systemInstruction },
           { role: "user", content: userPrompt }
         ],
-        accessCode: accessCode // Send code to backend for verification
+        accessCode: accessCode 
       })
     });
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        // Handle specific backend errors
         if (response.status === 403) {
             throw new Error("卡密无效，请检查后重新输入。");
         }

@@ -163,27 +163,33 @@ const ResultsView: React.FC<ResultsViewProps> = ({ data, onUnlock, onReset, isUn
             {/* Other Cities Grid */}
             <div className="mb-12">
                  <h3 className="text-lg font-serif text-slate-400 mb-4 text-center">其他适合你的城市</h3>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 gap-4">
                     {(isLocked ? [1, 2, 3, 4] : otherCities).map((city, idx) => {
                         const c = city as CityRecommendation;
                         return (
-                            <div key={idx} className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/30 flex justify-between items-center">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                        <h4 className="font-bold text-slate-200 text-lg">{isLocked ? '???' : c.name}</h4>
-                                    </div>
-                                    <div className="flex gap-2">
+                            <div key={idx} className="bg-slate-800/30 rounded-xl p-5 border border-slate-700/30 flex flex-col md:flex-row md:items-start gap-4">
+                                
+                                {/* Header: Name + Score */}
+                                <div className="flex-shrink-0 flex md:flex-col justify-between md:justify-start items-center md:items-start md:w-24">
+                                     <h4 className="font-bold text-slate-200 text-lg">{isLocked ? '???' : c.name}</h4>
+                                     <span className="text-emerald-400 font-bold text-xl">{isLocked ? '??%' : `${c.score}%`}</span>
+                                </div>
+
+                                {/* Body: Tags + Description */}
+                                <div className="flex-grow">
+                                    <div className="flex flex-wrap gap-2 mb-2">
                                         {isLocked 
                                           ? <span className="text-xs text-slate-500">隐藏内容</span>
-                                          : c.tags?.slice(0, 2).map((t, i) => (
-                                            <span key={i} className="text-[10px] text-slate-400 bg-slate-700/50 px-1.5 py-0.5 rounded">{t}</span>
+                                          : c.tags?.slice(0, 3).map((t, i) => (
+                                            <span key={i} className="text-[10px] text-slate-400 bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-700">{t}</span>
                                           ))
                                         }
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                     <span className="block text-emerald-400 font-bold text-xl">{isLocked ? '??%' : `${c.score}%`}</span>
+                                    <p className="text-sm text-slate-400 leading-relaxed">
+                                        {isLocked 
+                                            ? "解锁后查看该城市的详细匹配理由与五行互补分析。" 
+                                            : c.description}
+                                    </p>
                                 </div>
                             </div>
                         );
