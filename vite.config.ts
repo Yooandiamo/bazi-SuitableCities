@@ -6,9 +6,11 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, '.', '');
   
-  // Prioritize env var from file, then system process.env, then empty string.
-  // CRITICAL: Trim whitespace which often causes "API KEY NOT VALID" errors.
-  const apiKey = (env.API_KEY || process.env.API_KEY || '').trim();
+  // Clean the API Key: remove whitespace and potential surrounding quotes
+  let apiKey = (env.API_KEY || process.env.API_KEY || '').trim();
+  if (apiKey.startsWith('"') && apiKey.endsWith('"')) {
+    apiKey = apiKey.slice(1, -1);
+  }
 
   return {
     plugins: [react()],

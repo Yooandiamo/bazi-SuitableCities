@@ -48,7 +48,7 @@ const sanitizeData = (aiData: any, localData: any): DestinyAnalysis => {
 export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis> => {
   // Validate API Key presence
   if (!process.env.API_KEY || process.env.API_KEY.trim() === '') {
-    throw new Error("未配置 API Key。请在环境配置中添加 Google API Key。");
+    throw new Error("未检测到 API Key。请在环境配置中添加 Google API Key。");
   }
 
   // Step 1: Local Calculation (True Solar Time)
@@ -149,8 +149,6 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
 
     let parsedAIResponse;
     try {
-        // Attempt to parse. response.text usually returns string, but sometimes might wrap in ```json ``` 
-        // Although responseMimeType: "application/json" should prevent markdown wrapping, it's good to be safe.
         const cleanedContent = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
         parsedAIResponse = JSON.parse(cleanedContent);
     } catch (e) {
@@ -162,10 +160,21 @@ export const analyzeDestiny = async (input: UserInput): Promise<DestinyAnalysis>
 
   } catch (error: any) {
     console.error("Gemini Analysis Failed:", error);
-    // Provide a more user-friendly error message for common issues
-    if (error.message?.includes('LOAD FAILED') || error.message?.includes('fetch') || error.message?.includes('Failed to fetch')) {
-       throw new Error("网络连接失败。请检查您的网络设置（如 VPN 或代理），或者 API Key 是否有效。");
+    
+    const errStr = error.toString();
+    const errMsg = error.message || '';
+
+    // Handle specific API Key error
+    if (errMsg.includes("API key not valid") || errMsg.includes("API_KEY_INVALID") || errStr.includes("400")) {
+       throw new Error("API Key 无效。请检查您配置的 Google API Key 是否正确，或是否已在 Google AI Studio 中启用。");
     }
-    throw new Error(error.message || "无法连接到命运分析服务，请检查网络或稍后再试。");
+    
+    // Handle network errors
+    if (errMsg.includes('LOAD FAILED') || errMsg.includes('fetch') || errMsg.includes('Failed to fetch')) {
+       throw new Error("网络连接失败。请检查您的网络设置（如 VPN 或代理）。");
+    }
+
+    // Default error
+    throw new Error("命理分析服务暂时不可用，请稍后重试。");
   }
 };

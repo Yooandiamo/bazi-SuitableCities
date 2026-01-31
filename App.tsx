@@ -65,14 +65,16 @@ const App: React.FC = () => {
         )}
 
         {loadingState === LoadingState.ERROR && (
-           <div className="text-center max-w-md p-8 bg-red-900/20 backdrop-blur-md rounded-2xl border border-red-500/30">
-              <h3 className="text-xl font-bold text-red-400 mb-2">连接中断</h3>
-              <p className="text-slate-300 mb-6 break-words">{errorMsg}</p>
+           <div className="text-center max-w-lg w-full p-8 bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-red-500/30 shadow-2xl">
+              <h3 className="text-xl font-bold text-red-400 mb-4">分析中断</h3>
+              <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 mb-6 text-left">
+                  <p className="text-slate-200 text-sm font-mono break-words whitespace-pre-wrap">{errorMsg}</p>
+              </div>
               <button 
                 onClick={() => setLoadingState(LoadingState.IDLE)}
-                className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"
+                className="px-8 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors border border-slate-600"
               >
-                重试
+                返回重试
               </button>
            </div>
         )}
