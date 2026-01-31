@@ -78,7 +78,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-900 border border-amber-500/30 mb-4 shadow-lg shadow-amber-500/10">
           <Compass className="w-8 h-8 text-amber-500" />
         </div>
-        <h2 className="text-2xl font-bold text-amber-50 tracking-wider font-serif">五行八字分析</h2>
+        <h2 className="text-2xl font-bold text-amber-50 tracking-wider font-serif">宜居城市分析</h2>
         <p className="text-slate-400 text-sm mt-2 font-light">
             输入出生信息，探寻你的本命磁场
         </p>
