@@ -62,10 +62,16 @@ export const CHINA_CITIES: ProvinceInfo[] = [
     cities: [
       { name: "呼和浩特", lng: 111.75 },
       { name: "包头", lng: 109.84 },
+      { name: "乌海", lng: 106.82 },
       { name: "赤峰", lng: 118.96 },
       { name: "通辽", lng: 122.26 },
       { name: "鄂尔多斯", lng: 109.78 },
-      { name: "呼伦贝尔", lng: 119.77 }
+      { name: "呼伦贝尔", lng: 119.77 },
+      { name: "巴彦淖尔", lng: 107.39 },
+      { name: "乌兰察布", lng: 113.13 },
+      { name: "兴安盟", lng: 122.05 },
+      { name: "锡林郭勒盟", lng: 116.05 },
+      { name: "阿拉善盟", lng: 105.73 }
     ]
   },
   {
@@ -75,10 +81,16 @@ export const CHINA_CITIES: ProvinceInfo[] = [
       { name: "大连", lng: 121.61 },
       { name: "鞍山", lng: 122.99 },
       { name: "抚顺", lng: 123.95 },
-      { name: "本溪", lng: 123.77 },
-      { name: "丹东", lng: 124.39 },
-      { name: "锦州", lng: 121.13 },
-      { name: "营口", lng: 122.23 }
+      { name: "本溪", lng: 123.76 },
+      { name: "丹东", lng: 124.35 },
+      { name: "锦州", lng: 121.12 },
+      { name: "营口", lng: 122.23 },
+      { name: "阜新", lng: 121.67 },
+      { name: "辽阳", lng: 123.17 },
+      { name: "盘锦", lng: 122.07 },
+      { name: "铁岭", lng: 123.83 },
+      { name: "朝阳", lng: 120.45 },
+      { name: "葫芦岛", lng: 120.83 }
     ]
   },
   {
@@ -238,7 +250,8 @@ export const CHINA_CITIES: ProvinceInfo[] = [
       { name: "商丘", lng: 115.65 },
       { name: "信阳", lng: 114.09 },
       { name: "周口", lng: 114.65 },
-      { name: "驻马店", lng: 114.02 }
+      { name: "驻马店", lng: 114.02 },
+      { name: "济源", lng: 112.57 }
     ]
   },
   {
@@ -256,7 +269,11 @@ export const CHINA_CITIES: ProvinceInfo[] = [
       { name: "黄冈", lng: 114.87 },
       { name: "咸宁", lng: 114.33 },
       { name: "随州", lng: 113.38 },
-      { name: "恩施", lng: 109.49 }
+      { name: "恩施", lng: 109.49 },
+      { name: "仙桃", lng: 113.44 },
+      { name: "潜江", lng: 112.89 },
+      { name: "天门", lng: 113.16 },
+      { name: "神农架", lng: 110.67 }
     ]
   },
   {
@@ -329,7 +346,12 @@ export const CHINA_CITIES: ProvinceInfo[] = [
       { name: "海口", lng: 110.33 },
       { name: "三亚", lng: 109.51 },
       { name: "三沙", lng: 112.34 },
-      { name: "儋州", lng: 109.58 }
+      { name: "儋州", lng: 109.58 },
+      { name: "五指山", lng: 109.51 },
+      { name: "琼海", lng: 110.46 },
+      { name: "文昌", lng: 110.75 },
+      { name: "万宁", lng: 110.38 },
+      { name: "东方", lng: 108.65 }
     ]
   },
   {
@@ -366,7 +388,10 @@ export const CHINA_CITIES: ProvinceInfo[] = [
       { name: "遵义", lng: 106.94 },
       { name: "安顺", lng: 105.95 },
       { name: "毕节", lng: 105.29 },
-      { name: "铜仁", lng: 109.19 }
+      { name: "铜仁", lng: 109.19 },
+      { name: "黔西南", lng: 104.90 },
+      { name: "黔东南", lng: 107.97 },
+      { name: "黔南", lng: 107.52 }
     ]
   },
   {
@@ -379,7 +404,15 @@ export const CHINA_CITIES: ProvinceInfo[] = [
       { name: "昭通", lng: 103.72 },
       { name: "丽江", lng: 100.23 },
       { name: "普洱", lng: 100.97 },
-      { name: "临沧", lng: 100.09 }
+      { name: "临沧", lng: 100.09 },
+      { name: "楚雄", lng: 101.54 },
+      { name: "红河", lng: 103.38 },
+      { name: "文山", lng: 104.24 },
+      { name: "西双版纳", lng: 100.80 },
+      { name: "大理", lng: 100.23 },
+      { name: "德宏", lng: 98.58 },
+      { name: "怒江", lng: 98.85 },
+      { name: "迪庆", lng: 99.71 }
     ]
   },
   {
@@ -432,7 +465,13 @@ export const CHINA_CITIES: ProvinceInfo[] = [
     name: "青海",
     cities: [
       { name: "西宁", lng: 101.78 },
-      { name: "海东", lng: 102.10 }
+      { name: "海东", lng: 102.10 },
+      { name: "海北", lng: 100.90 },
+      { name: "黄南", lng: 102.01 },
+      { name: "海南", lng: 100.62 },
+      { name: "果洛", lng: 100.24 },
+      { name: "玉树", lng: 97.01 },
+      { name: "海西", lng: 97.37 }
     ]
   },
   {
@@ -461,7 +500,8 @@ export const CHINA_CITIES: ProvinceInfo[] = [
       { name: "和田", lng: 79.92 },
       { name: "伊犁", lng: 81.32 },
       { name: "塔城", lng: 82.98 },
-      { name: "阿勒泰", lng: 88.14 }
+      { name: "阿勒泰", lng: 88.14 },
+      { name: "石河子", lng: 86.03 }
     ]
   },
   {
@@ -477,7 +517,11 @@ export const CHINA_CITIES: ProvinceInfo[] = [
     cities: [
       { name: "台北", lng: 121.50 },
       { name: "高雄", lng: 120.30 },
-      { name: "台中", lng: 120.67 }
+      { name: "台中", lng: 120.67 },
+      { name: "台南", lng: 120.18 },
+      { name: "基隆", lng: 121.74 },
+      { name: "新竹", lng: 120.97 },
+      { name: "嘉义", lng: 120.45 }
     ]
   }
 ];
