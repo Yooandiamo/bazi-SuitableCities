@@ -1,8 +1,10 @@
 
 export interface UserInput {
   gender: 'male' | 'female';
-  birthDate: string; // YYYY-MM-DD
+  birthDate: string; // YYYY-MM-DD (Solar) OR YYYY-M-D (Lunar)
   birthTime: string; // HH:mm
+  calendarType: 'solar' | 'lunar';
+  isLeapMonth?: boolean;
   province?: string;
   city?: string;
   longitude?: number; // E.g. 116.40 for Beijing. Used for True Solar Time.

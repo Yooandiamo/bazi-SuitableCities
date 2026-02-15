@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserInput } from '../types';
-import { Compass, Sparkles, User, UserRound, KeyRound } from 'lucide-react';
+import { Compass, Sparkles, User, UserRound, KeyRound, CalendarDays, Moon } from 'lucide-react';
 import { CHINA_CITIES, CityInfo } from '../utils/cityData';
 
 interface InputFormProps {
@@ -10,8 +10,17 @@ interface InputFormProps {
 
 const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
   const [gender, setGender] = useState<'male' | 'female'>('male');
-  const [birthDate, setBirthDate] = useState('');
+  
+  // Date State
+  const [calendarType, setCalendarType] = useState<'solar' | 'lunar'>('solar');
+  const [birthDate, setBirthDate] = useState(''); // Used for Solar
   const [birthTime, setBirthTime] = useState('');
+  
+  // Lunar Date State
+  const [lunarYear, setLunarYear] = useState<number>(1990);
+  const [lunarMonth, setLunarMonth] = useState<number>(1);
+  const [lunarDay, setLunarDay] = useState<number>(1);
+  const [isLeapMonth, setIsLeapMonth] = useState<boolean>(false);
   
   // Location State
   const [selectedProvince, setSelectedProvince] = useState<string>('');
@@ -51,19 +60,36 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
     }
   }, [selectedCity, availableCities]);
 
+  // Generate Year/Month/Day options for Lunar
+  const years = Array.from({ length: 100 }, (_, i) => 2030 - i); // 2030 down to 1931
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const days = Array.from({ length: 30 }, (_, i) => i + 1);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (birthDate && birthTime) {
+    
+    // Construct Date String based on type
+    // Solar: "YYYY-MM-DD"
+    // Lunar: "YYYY-M-D" (Raw values)
+    
+    let finalBirthDate = birthDate;
+    if (calendarType === 'lunar') {
+        finalBirthDate = `${lunarYear}-${lunarMonth}-${lunarDay}`;
+    }
+
+    if (finalBirthDate && birthTime) {
       onSubmit(
           { 
             gender, 
-            birthDate, 
+            birthDate: finalBirthDate, 
             birthTime,
+            calendarType,
+            isLeapMonth,
             province: selectedProvince,
             city: selectedCity,
             longitude
           }, 
-          accessCode // Pass the code if entered
+          accessCode 
       );
     }
   };
@@ -86,18 +112,94 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
       <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
         
+        {/* Calendar Type Toggle */}
+        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700">
+            <button
+                type="button"
+                onClick={() => setCalendarType('solar')}
+                className={`flex-1 py-2 text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-all ${
+                    calendarType === 'solar' 
+                    ? 'bg-slate-700 text-amber-400 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+            >
+                <CalendarDays className="w-4 h-4" /> 公历 (阳历)
+            </button>
+            <button
+                type="button"
+                onClick={() => setCalendarType('lunar')}
+                className={`flex-1 py-2 text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-all ${
+                    calendarType === 'lunar' 
+                    ? 'bg-slate-700 text-amber-400 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+            >
+                <Moon className="w-4 h-4" /> 农历 (阴历)
+            </button>
+        </div>
+
         {/* Date and Time */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          {/* Date Input */}
           <div>
-            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">出生日期 (Date)</label>
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all [color-scheme:dark] text-center appearance-none"
-              required
-            />
+            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">
+                {calendarType === 'solar' ? '出生日期 (公历)' : '出生日期 (农历)'}
+            </label>
+            
+            {calendarType === 'solar' ? (
+                <input
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all [color-scheme:dark] text-center appearance-none"
+                    required
+                />
+            ) : (
+                <div className="flex gap-2">
+                    <select 
+                        value={lunarYear}
+                        onChange={(e) => setLunarYear(Number(e.target.value))}
+                        className="flex-1 h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-2 text-slate-100 focus:outline-none focus:border-amber-500/50 text-center appearance-none"
+                    >
+                        {years.map(y => <option key={y} value={y}>{y}年</option>)}
+                    </select>
+                    <div className="flex-[0.8] flex flex-col gap-1">
+                        <select 
+                            value={lunarMonth}
+                            onChange={(e) => setLunarMonth(Number(e.target.value))}
+                            className="w-full h-full bg-slate-900/50 border border-slate-700 rounded-lg px-1 text-slate-100 focus:outline-none focus:border-amber-500/50 text-center appearance-none"
+                        >
+                            {months.map(m => <option key={m} value={m}>{m}月</option>)}
+                        </select>
+                    </div>
+                    <select 
+                        value={lunarDay}
+                        onChange={(e) => setLunarDay(Number(e.target.value))}
+                        className="flex-[0.8] h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-1 text-slate-100 focus:outline-none focus:border-amber-500/50 text-center appearance-none"
+                    >
+                        {days.map(d => <option key={d} value={d}>{d}日</option>)}
+                    </select>
+                </div>
+            )}
+            
+            {/* Leap Month Checkbox for Lunar */}
+            {calendarType === 'lunar' && (
+                <div className="flex items-center justify-center mt-2 gap-2">
+                    <input 
+                        type="checkbox" 
+                        id="leapMonth"
+                        checked={isLeapMonth}
+                        onChange={(e) => setIsLeapMonth(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900"
+                    />
+                    <label htmlFor="leapMonth" className="text-sm text-slate-400 cursor-pointer select-none">
+                        是闰月 (例如: 闰四月)
+                    </label>
+                </div>
+            )}
           </div>
+
+          {/* Time Input */}
           <div>
             <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">出生时间 (Time)</label>
             <input
@@ -173,7 +275,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
            </div>
         </div>
 
-        {/* Access Code Input (New) */}
+        {/* Access Code Input */}
         <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <KeyRound className="h-4 w-4 text-amber-500/70" />
@@ -182,7 +284,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
                 type="text"
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
-                placeholder="在此输入解锁码"
+                placeholder="在此输入解锁码 (选填)"
                 className="w-full h-12 bg-black/40 border border-slate-600 rounded-lg pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono tracking-wide"
             />
         </div>

@@ -3,7 +3,13 @@ import { calculateAccurateBaZi } from "../utils/baziHelper";
 
 // 1. Local Calculation Only (Free & Instant)
 export const getLocalAnalysis = (input: UserInput): LocalAnalysisData => {
-  return calculateAccurateBaZi(input.birthDate, input.birthTime, input.longitude);
+  return calculateAccurateBaZi(
+      input.birthDate, 
+      input.birthTime, 
+      input.calendarType, // New Param
+      input.isLeapMonth, // New Param
+      input.longitude
+  );
 };
 
 // 2. Data Sanitization Helper
@@ -49,6 +55,9 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
   const elementsStr = localData.fiveElements.map(e => `${e.label}: ${e.percentage}%`).join(', ');
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
+  
+  // Determine date display for prompt
+  const dateTypeStr = input.calendarType === 'lunar' ? `农历 (阴历) ${input.isLeapMonth ? '闰' : ''}` : '公历 (阳历)';
 
   const systemInstruction = `你是一位精通"地理五行"、"八字格局"与"调候用神"的命理大师。
 你的任务是为用户推荐最适合生活的中国城市。
@@ -87,7 +96,7 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
     用户信息:
     性别: ${genderStr}
     出生地: ${locationStr}
-    出生时间: ${input.birthDate} ${input.birthTime} (真太阳时)
+    出生时间: ${input.birthDate} ${input.birthTime} (${dateTypeStr} - 已校正为真太阳时)
 
     *** 八字排盘数据 ***
     四柱: ${pillarsStr}
