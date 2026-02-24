@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { UserInput } from '../types';
-import { Compass, Sparkles, User, UserRound, KeyRound, CalendarDays, Moon } from 'lucide-react';
+import { Compass, Sparkles, User, UserRound, KeyRound, CalendarDays, Moon, ChevronDown, Clock } from 'lucide-react';
 import { CHINA_CITIES, CityInfo } from '../utils/cityData';
+import BottomSheetPicker, { PickerColumn } from './BottomSheetPicker';
 
 interface InputFormProps {
   onSubmit: (data: UserInput, accessCode?: string) => void;
@@ -13,8 +14,8 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
   
   // Date State
   const [calendarType, setCalendarType] = useState<'solar' | 'lunar'>('solar');
-  const [birthDate, setBirthDate] = useState(''); // Used for Solar
-  const [birthTime, setBirthTime] = useState('');
+  const [birthDate, setBirthDate] = useState(''); // Used for Solar "YYYY-MM-DD"
+  const [birthTime, setBirthTime] = useState(''); // "HH:mm"
   
   // Lunar Date State
   const [lunarYear, setLunarYear] = useState<number>(1990);
@@ -30,6 +31,69 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
   // Access Code State
   const [accessCode, setAccessCode] = useState('');
+
+  // Picker Visibility State
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+
+  // Temp State for Pickers
+  const [tempYear, setTempYear] = useState(1990);
+  const [tempMonth, setTempMonth] = useState(1);
+  const [tempDay, setTempDay] = useState(1);
+  const [tempHour, setTempHour] = useState(12);
+  const [tempMinute, setTempMinute] = useState(0);
+
+  // Initialize Temp State when opening pickers
+  const openDatePicker = () => {
+    if (calendarType === 'solar') {
+        if (birthDate) {
+            const [y, m, d] = birthDate.split('-').map(Number);
+            setTempYear(y);
+            setTempMonth(m);
+            setTempDay(d);
+        } else {
+            const now = new Date();
+            setTempYear(now.getFullYear());
+            setTempMonth(now.getMonth() + 1);
+            setTempDay(now.getDate());
+        }
+    } else {
+        setTempYear(lunarYear);
+        setTempMonth(lunarMonth);
+        setTempDay(lunarDay);
+    }
+    setIsDatePickerOpen(true);
+  };
+
+  const openTimePicker = () => {
+    if (birthTime) {
+        const [h, m] = birthTime.split(':').map(Number);
+        setTempHour(h);
+        setTempMinute(m);
+    } else {
+        setTempHour(12);
+        setTempMinute(0);
+    }
+    setIsTimePickerOpen(true);
+  };
+
+  const handleDateConfirm = () => {
+    if (calendarType === 'solar') {
+        const dateStr = `${tempYear}-${String(tempMonth).padStart(2, '0')}-${String(tempDay).padStart(2, '0')}`;
+        setBirthDate(dateStr);
+    } else {
+        setLunarYear(tempYear);
+        setLunarMonth(tempMonth);
+        setLunarDay(tempDay);
+    }
+    setIsDatePickerOpen(false);
+  };
+
+  const handleTimeConfirm = () => {
+    const timeStr = `${String(tempHour).padStart(2, '0')}:${String(tempMinute).padStart(2, '0')}`;
+    setBirthTime(timeStr);
+    setIsTimePickerOpen(false);
+  };
 
   // Update cities when province changes
   useEffect(() => {
@@ -60,17 +124,33 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
     }
   }, [selectedCity, availableCities]);
 
-  // Generate Year/Month/Day options for Lunar
-  const years = Array.from({ length: 100 }, (_, i) => 2030 - i); // 2030 down to 1931
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
-  const days = Array.from({ length: 30 }, (_, i) => i + 1);
+  // Generate Options
+  const yearOptions = useMemo(() => Array.from({ length: 100 }, (_, i) => ({ label: String(2030 - i), value: 2030 - i })), []);
+  const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => ({ label: String(i + 1), value: i + 1 })), []);
+  
+  // Dynamic Day Options based on Year/Month
+  const dayOptions = useMemo(() => {
+    let daysInMonth = 31;
+    if (calendarType === 'solar') {
+        daysInMonth = new Date(tempYear, tempMonth, 0).getDate();
+    } else {
+        daysInMonth = 30; // Simplified for Lunar as per original code
+    }
+    return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1), value: i + 1 }));
+  }, [tempYear, tempMonth, calendarType]);
+
+  // Ensure tempDay is valid when month changes
+  useEffect(() => {
+      if (tempDay > dayOptions.length) {
+          setTempDay(dayOptions.length);
+      }
+  }, [dayOptions.length, tempDay]);
+
+  const hourOptions = useMemo(() => Array.from({ length: 24 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: i })), []);
+  const minuteOptions = useMemo(() => Array.from({ length: 60 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: i })), []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Construct Date String based on type
-    // Solar: "YYYY-MM-DD"
-    // Lunar: "YYYY-M-D" (Raw values)
     
     let finalBirthDate = birthDate;
     if (calendarType === 'lunar') {
@@ -93,6 +173,13 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
       );
     }
   };
+
+  // Display Values
+  const displayDate = calendarType === 'solar' 
+    ? (birthDate || '请选择日期') 
+    : `${lunarYear}年 ${lunarMonth}月 ${lunarDay}日`;
+  
+  const displayTime = birthTime || '请选择时间';
 
   return (
     <div className="w-full max-w-md p-8 bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl relative overflow-hidden">
@@ -140,47 +227,22 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
         {/* Date and Time */}
         <div className="space-y-4">
-          {/* Date Input */}
+          {/* Date Input (Custom Trigger) */}
           <div>
             <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">
                 {calendarType === 'solar' ? '出生日期 (公历)' : '出生日期 (农历)'}
             </label>
             
-            {calendarType === 'solar' ? (
-                <input
-                    type="date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                    className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all [color-scheme:dark] text-center appearance-none"
-                    required
-                />
-            ) : (
-                <div className="flex gap-2">
-                    <select 
-                        value={lunarYear}
-                        onChange={(e) => setLunarYear(Number(e.target.value))}
-                        className="flex-1 h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-2 text-slate-100 focus:outline-none focus:border-amber-500/50 text-center appearance-none"
-                    >
-                        {years.map(y => <option key={y} value={y}>{y}年</option>)}
-                    </select>
-                    <div className="flex-[0.8] flex flex-col gap-1">
-                        <select 
-                            value={lunarMonth}
-                            onChange={(e) => setLunarMonth(Number(e.target.value))}
-                            className="w-full h-full bg-slate-900/50 border border-slate-700 rounded-lg px-1 text-slate-100 focus:outline-none focus:border-amber-500/50 text-center appearance-none"
-                        >
-                            {months.map(m => <option key={m} value={m}>{m}月</option>)}
-                        </select>
-                    </div>
-                    <select 
-                        value={lunarDay}
-                        onChange={(e) => setLunarDay(Number(e.target.value))}
-                        className="flex-[0.8] h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-1 text-slate-100 focus:outline-none focus:border-amber-500/50 text-center appearance-none"
-                    >
-                        {days.map(d => <option key={d} value={d}>{d}日</option>)}
-                    </select>
-                </div>
-            )}
+            <button
+                type="button"
+                onClick={openDatePicker}
+                className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 flex items-center justify-between hover:border-amber-500/50 transition-all group"
+            >
+                <span className={!birthDate && calendarType === 'solar' ? 'text-slate-500' : 'text-slate-100'}>
+                    {displayDate}
+                </span>
+                <ChevronDown className="w-4 h-4 text-slate-500 group-hover:text-amber-500 transition-colors" />
+            </button>
             
             {/* Leap Month Checkbox for Lunar */}
             {calendarType === 'lunar' && (
@@ -199,16 +261,19 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
             )}
           </div>
 
-          {/* Time Input */}
+          {/* Time Input (Custom Trigger) */}
           <div>
             <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">出生时间 (Time)</label>
-            <input
-              type="time"
-              value={birthTime}
-              onChange={(e) => setBirthTime(e.target.value)}
-              className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all [color-scheme:dark] text-center appearance-none"
-              required
-            />
+            <button
+                type="button"
+                onClick={openTimePicker}
+                className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 flex items-center justify-between hover:border-amber-500/50 transition-all group"
+            >
+                <span className={!birthTime ? 'text-slate-500' : 'text-slate-100'}>
+                    {displayTime}
+                </span>
+                <Clock className="w-4 h-4 text-slate-500 group-hover:text-amber-500 transition-colors" />
+            </button>
           </div>
         </div>
 
@@ -218,29 +283,35 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
                 出生地点 (Location) <span className="text-slate-600 ml-1 text-[10px] normal-case">用于真太阳时校正</span>
             </label>
             <div className="grid grid-cols-2 gap-4">
-                <select 
-                    value={selectedProvince}
-                    onChange={(e) => setSelectedProvince(e.target.value)}
-                    className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 appearance-none text-center"
-                    required
-                >
-                    <option value="" disabled>省份/地区</option>
-                    {CHINA_CITIES.map((p) => (
-                        <option key={p.name} value={p.name}>{p.name}</option>
-                    ))}
-                </select>
-                <select 
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 appearance-none text-center"
-                    required
-                    disabled={!selectedProvince}
-                >
-                    <option value="" disabled>城市</option>
-                    {availableCities.map((c) => (
-                        <option key={c.name} value={c.name}>{c.name}</option>
-                    ))}
-                </select>
+                <div className="relative">
+                    <select 
+                        value={selectedProvince}
+                        onChange={(e) => setSelectedProvince(e.target.value)}
+                        className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 appearance-none text-center"
+                        required
+                    >
+                        <option value="" disabled>省份/地区</option>
+                        {CHINA_CITIES.map((p) => (
+                            <option key={p.name} value={p.name}>{p.name}</option>
+                        ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                </div>
+                <div className="relative">
+                    <select 
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                        className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-lg px-4 text-slate-100 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 appearance-none text-center"
+                        required
+                        disabled={!selectedProvince}
+                    >
+                        <option value="" disabled>城市</option>
+                        {availableCities.map((c) => (
+                            <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                </div>
             </div>
         </div>
 
@@ -312,6 +383,56 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
           )}
         </button>
       </form>
+
+      {/* Date Picker Modal */}
+      <BottomSheetPicker
+        isOpen={isDatePickerOpen}
+        onClose={() => setIsDatePickerOpen(false)}
+        onConfirm={handleDateConfirm}
+        title={calendarType === 'solar' ? "选择出生日期 (公历)" : "选择出生日期 (农历)"}
+        columns={[
+            {
+                options: yearOptions,
+                value: tempYear,
+                onChange: setTempYear,
+                suffix: '年'
+            },
+            {
+                options: monthOptions,
+                value: tempMonth,
+                onChange: setTempMonth,
+                suffix: '月'
+            },
+            {
+                options: dayOptions,
+                value: tempDay,
+                onChange: setTempDay,
+                suffix: '日'
+            }
+        ]}
+      />
+
+      {/* Time Picker Modal */}
+      <BottomSheetPicker
+        isOpen={isTimePickerOpen}
+        onClose={() => setIsTimePickerOpen(false)}
+        onConfirm={handleTimeConfirm}
+        title="选择出生时间"
+        columns={[
+            {
+                options: hourOptions,
+                value: tempHour,
+                onChange: setTempHour,
+                suffix: '时'
+            },
+            {
+                options: minuteOptions,
+                value: tempMinute,
+                onChange: setTempMinute,
+                suffix: '分'
+            }
+        ]}
+      />
     </div>
   );
 };
