@@ -33,46 +33,68 @@ const PickerColumnView: React.FC<{ column: PickerColumn }> = ({ column }) => {
 
   // Scroll to initial value
   useEffect(() => {
+    // Don't force scroll if the user is currently interacting
+    if (isScrolling.current) return;
+
     if (containerRef.current) {
       const index = column.options.findIndex(o => o.value === column.value);
       if (index !== -1) {
-        containerRef.current.scrollTop = index * ITEM_HEIGHT;
+        const targetScrollTop = index * ITEM_HEIGHT;
+        // Only force scroll if we are far off (prevents fighting with user scroll)
+        if (Math.abs(containerRef.current.scrollTop - targetScrollTop) > ITEM_HEIGHT / 2) {
+            containerRef.current.scrollTop = targetScrollTop;
+        }
       }
     }
-  }, [column.value, column.options]); // Re-run if value changes externally (e.g. initial load)
+  }, [column.value, column.options]);
 
   const handleScroll = () => {
-    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    // Mark as scrolling to block useEffect sync
     isScrolling.current = true;
 
+    // Clear existing timeout for "scroll end" detection
+    if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+    }
+    
+    // Set timeout to clear "isScrolling" flag after scroll stops
     scrollTimeout.current = setTimeout(() => {
-      isScrolling.current = false;
-      if (containerRef.current) {
-        const scrollTop = containerRef.current.scrollTop;
-        const index = Math.round(scrollTop / ITEM_HEIGHT);
-        const clampedIndex = Math.max(0, Math.min(index, column.options.length - 1));
-        
-        // Snap to item
-        const targetScrollTop = clampedIndex * ITEM_HEIGHT;
-        if (containerRef.current.scrollTop !== targetScrollTop) {
-             containerRef.current.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+        isScrolling.current = false;
+        // Optional: Ensure final snap alignment here if needed, 
+        // but CSS snap-y usually handles the visual part.
+        // We can do a final value check here to be safe.
+        if (containerRef.current) {
+             const scrollTop = containerRef.current.scrollTop;
+             const index = Math.round(scrollTop / ITEM_HEIGHT);
+             const clampedIndex = Math.max(0, Math.min(index, column.options.length - 1));
+             const option = column.options[clampedIndex];
+             if (option && option.value !== column.value) {
+                 column.onChange(option.value);
+             }
         }
-        
-        // Update value
-        const option = column.options[clampedIndex];
-        if (option && option.value !== column.value) {
-          column.onChange(option.value);
+    }, 150);
+
+    // Immediate update (throttled by rAF) for responsive UI
+    requestAnimationFrame(() => {
+        if (containerRef.current) {
+            const scrollTop = containerRef.current.scrollTop;
+            const index = Math.round(scrollTop / ITEM_HEIGHT);
+            const clampedIndex = Math.max(0, Math.min(index, column.options.length - 1));
+            
+            const option = column.options[clampedIndex];
+            if (option && option.value !== column.value) {
+                column.onChange(option.value);
+            }
         }
-      }
-    }, 150); // Debounce scroll end
+    });
   };
 
   return (
-    <div className="flex-1 h-full relative z-10">
+    <div className="flex-1 h-full relative z-10 overflow-hidden">
       <div 
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-full overflow-y-auto snap-y snap-mandatory scrollbar-hide"
+        className="h-full overflow-y-auto overflow-x-hidden snap-y snap-mandatory scrollbar-hide touch-pan-y"
         style={{ padding: `${(CONTAINER_HEIGHT - ITEM_HEIGHT) / 2}px 0` }}
       >
         {column.options.map((option) => (
