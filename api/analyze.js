@@ -1,7 +1,3 @@
-
-// Vercel Serverless Function
-// 这个文件运行在服务器端，不会暴露给用户
-
 export default async function handler(req, res) {
   // 1. 设置 CORS (允许跨域)
   res.setHeader('Access-Control-Allow-Credentials', true);
