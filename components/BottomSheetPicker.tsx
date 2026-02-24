@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check } from 'lucide-react';
 
 export interface PickerOption {
@@ -126,11 +127,11 @@ const BottomSheetPicker: React.FC<BottomSheetPickerProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
       <div 
         ref={overlayRef}
-        className="w-full max-w-md bg-slate-900 border-t border-slate-700 rounded-t-2xl shadow-2xl animate-slide-up pb-8"
+        className="w-full max-w-md bg-slate-900 border-t border-slate-700 rounded-t-2xl shadow-2xl animate-slide-up pb-8 mx-auto"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur rounded-t-2xl">
@@ -165,7 +166,8 @@ const BottomSheetPicker: React.FC<BottomSheetPickerProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

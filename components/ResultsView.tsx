@@ -60,7 +60,7 @@ const ResultsView: React.FC<ResultsViewProps> = ({ data, onUnlock, onReset, isUn
           <div className="relative mt-4">
               <div className={`p-4 bg-slate-900/50 rounded-lg border border-slate-800 transition-all duration-700 ${isLocked ? 'blur-sm select-none opacity-50' : ''}`}>
                 <h4 className="text-sm uppercase tracking-widest text-amber-500/80 mb-2">命理摘要</h4>
-                <p className="text-slate-300 text-sm leading-relaxed italic">
+                <p className="text-slate-300 text-sm leading-relaxed">
                     {isLocked 
                         ? "此处包含基于您五行强弱的个性化命理摘要，解锁后可见。这通常涉及您一生的运势起伏与核心性格特质。" 
                         : `"${data.summary}"`}

@@ -54,8 +54,8 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
   // Prepare Prompt Data
   const pillarsStr = localData.pillars.map(p => `${p.name}: ${p.heavenlyStem}${p.earthlyBranch} (${p.elementStem}/${p.elementBranch})`).join(', ');
   const elementsStr = localData.fiveElements.map(e => `${e.label}: ${e.percentage}%`).join(', ');
-  const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
-  const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
+  const genderStr = input.gender === 'male' ? '乾造 (男)' : '坤造 (女)';
+  const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : '中国 (未知城市)';
   
   // Deterministic Data
   const patternStr = localData.pattern || "Unknown";

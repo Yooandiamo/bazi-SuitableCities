@@ -263,7 +263,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
           {/* Time Input (Custom Trigger) */}
           <div>
-            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">出生时间 (Time)</label>
+            <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">出生时间</label>
             <button
                 type="button"
                 onClick={openTimePicker}
@@ -280,7 +280,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
         {/* Location Selector */}
         <div>
             <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2 text-center">
-                出生地点 (Location) <span className="text-slate-600 ml-1 text-[10px] normal-case">用于真太阳时校正</span>
+                出生地点 <span className="text-slate-600 ml-1 text-[10px] normal-case">用于真太阳时校正</span>
             </label>
             <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
@@ -317,7 +317,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
         {/* Gender */}
         <div>
-           <label className="block text-xs uppercase tracking-widest text-slate-400 mb-3 text-center">性别 (Gender)</label>
+           <label className="block text-xs uppercase tracking-widest text-slate-400 mb-3 text-center">性别</label>
            <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
