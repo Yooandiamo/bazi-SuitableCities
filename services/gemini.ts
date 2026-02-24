@@ -28,13 +28,14 @@ const sanitizeData = (aiData: any, localData: LocalAnalysisData): DestinyAnalysi
       }))
     : [];
 
-  const favorableElements = Array.isArray(data.favorableElements) 
-    ? data.favorableElements.map((s: any) => safeString(s)) 
-    : [];
+  // Prefer local deterministic calculation for consistency
+  const favorableElements = (localData.favorableElements && localData.favorableElements.length > 0)
+    ? localData.favorableElements
+    : (Array.isArray(data.favorableElements) ? data.favorableElements.map((s: any) => safeString(s)) : []);
     
-  const unfavorableElements = Array.isArray(data.unfavorableElements) 
-    ? data.unfavorableElements.map((s: any) => safeString(s)) 
-    : [];
+  const unfavorableElements = (localData.unfavorableElements && localData.unfavorableElements.length > 0)
+    ? localData.unfavorableElements
+    : (Array.isArray(data.unfavorableElements) ? data.unfavorableElements.map((s: any) => safeString(s)) : []);
 
   return {
     ...localData,
@@ -56,38 +57,40 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
   const genderStr = input.gender === 'male' ? 'Male (乾造)' : 'Female (坤造)';
   const locationStr = input.city && input.province ? `${input.city}, ${input.province}` : 'China (Unknown City)';
   
+  // Deterministic Data
+  const patternStr = localData.pattern || "Unknown";
+  const favorableStr = localData.favorableElements ? localData.favorableElements.join(', ') : "Unknown";
+  const unfavorableStr = localData.unfavorableElements ? localData.unfavorableElements.join(', ') : "Unknown";
+
   // Determine date display for prompt
   const dateTypeStr = input.calendarType === 'lunar' ? `农历 (阴历) ${input.isLeapMonth ? '闰' : ''}` : '公历 (阳历)';
 
   const systemInstruction = `你是一位精通"地理五行"、"八字格局"与"调候用神"的命理大师。
 你的任务是为用户推荐最适合生活的中国城市。
 
-*** 重要逻辑说明 ***
-1. **严禁仅看五行缺什么就补什么**。必须分析【日主强弱】与【八字格局】。
-   - 若八字为从格（从强/从弱），则需顺势而为，不能简单求平衡。
-   - 若八字为正格，则依据身强身弱取【扶抑用神】。
-2. **高度重视【调候用神】**：
-   - 城市选择很大程度上受气候影响。
-   - 生于冬季（水旺、金寒）者，通常急需【火】来暖局，宜往南方或阳光充足之地，不宜再往寒冷北方。
-   - 生于夏季（火旺、土燥）者，通常急需【水】来润局，宜往北方或沿海湿润之地。
-3. **结合地理方位**：
-   - 东方/东南（木）：上海、杭州、江浙。
-   - 南方（火）：深圳、广州、海南、重庆（火炉）。
-   - 西方/西北（金）：成都（金水相涵）、西安、西部城市。
-   - 北方（水）：北京、大连、沿海港口。
-   - 中原（土）：郑州、中部地区。
+*** 核心指令：必须严格遵循提供的喜用神数据 ***
+系统已通过精密算法计算出该命局的喜用神，你**必须直接使用**，严禁自行重新推算或更改。
+你的工作是基于这些喜用神来解释为何推荐某些城市。
 
-返回格式必须为纯 JSON，不要带 markdown 标记：
+1. **已定格局与喜忌**：
+   - 格局：${patternStr}
+   - 喜用神（Favorable）：${favorableStr}
+   - 忌神（Unfavorable）：${unfavorableStr}
+
+2. **城市推荐逻辑**：
+   - 依据上述喜用神选择城市。
+   - 喜火 -> 南方; 喜水 -> 北方; 喜木 -> 东方; 喜金 -> 西方; 喜土 -> 中部/内陆。
+   - 必须结合【调候】（如冬生喜火，夏生喜水）进行解释。
+
+3. **返回格式**（纯 JSON）：
 {
-  "favorableElements": ["喜神1", "喜神2"],
-  "unfavorableElements": ["忌神1", "忌神2"],
-  "summary": "50-80字的命理摘要，指出格局特点（如：身弱喜印比，或冬生喜火调候）。",
+  "summary": "50-80字的命理摘要，基于已定的【${patternStr}】和喜用神【${favorableStr}】进行阐述。",
   "suitableCities": [
     { 
       "name": "城市名", 
       "score": 95, 
       "tags": ["气候标签", "人文标签", "五行标签"],
-      "description": "详细理由...必须结合八字格局和调候来解释（如：'你生于亥月，金寒水冷，急需南方火气暖局，深圳位于离卦...'）。" 
+      "description": "详细理由...解释为何该城市符合喜用神【${favorableStr}】。" 
     }
   ]
 }`;
@@ -103,13 +106,14 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
     日主: ${localData.dayMaster} (${localData.dayMasterElement})
     五行能量分布: ${elementsStr}
     
+    *** 系统计算结果 (必须遵循) ***
+    格局: ${patternStr}
+    喜用神: ${favorableStr}
+    忌神: ${unfavorableStr}
+    
     任务:
-    1. 综合判断格局（身强/身弱/从格）与调候需求，确定喜用神。
-    2. 推荐 5 个最适合发展的中国城市。
-       - **第 1 名（本命城市）**：分数 90+。描述约 80-100 字。
-       - **第 2-5 名（备选城市）**：分数 80-89。
-       - 标签使用 3-4 个短词（如：南方火旺、调候得宜、印星得地）。
-       - 理由要专业，不要只说“因为你缺木”，要说“因八字燥热需水润泽”或“身弱需印生扶”等。
+    1. 基于上述系统确定的喜用神，推荐 5 个最适合发展的中国城市。
+    2. 解释必须与系统给定的喜忌一致。
   `;
 
   try {

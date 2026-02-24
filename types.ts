@@ -37,6 +37,9 @@ export interface LocalAnalysisData {
   fiveElements: ElementData[];
   dayMaster: string;
   dayMasterElement: string;
+  favorableElements?: string[];
+  unfavorableElements?: string[];
+  pattern?: string;
 }
 
 // Full Data including AI (Paid/Locked)

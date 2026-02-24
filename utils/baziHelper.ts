@@ -23,6 +23,9 @@ export interface LocalBaZiResult {
   fiveElements: ElementData[];
   dayMaster: string; // e.g. "甲"
   dayMasterElement: string; // e.g. "Wood"
+  favorableElements?: string[];
+  unfavorableElements?: string[];
+  pattern?: string;
 }
 
 // Calculate Equation of Time approx in minutes
@@ -256,10 +259,110 @@ export const calculateAccurateBaZi = (
   const dayMaster = pillars[2].heavenlyStem; // Day Stem
   const dayMasterElement = pillars[2].elementStem;
 
+  // 8. Calculate Day Master Strength & Useful God (Deterministic)
+  const { favorable, unfavorable, pattern } = calculateUsefulGod(pillars, dayMasterElement);
+
   return {
     pillars,
     fiveElements,
     dayMaster,
-    dayMasterElement
+    dayMasterElement,
+    favorableElements: favorable,
+    unfavorableElements: unfavorable,
+    pattern
   };
 };
+
+// --- Deterministic Useful God Algorithm ---
+
+function calculateUsefulGod(pillars: Pillar[], dmElement: string): { favorable: string[], unfavorable: string[], pattern: string } {
+    // 1. Define Element Relationships
+    const generating: Record<string, string> = { 'Wood': 'Fire', 'Fire': 'Earth', 'Earth': 'Metal', 'Metal': 'Water', 'Water': 'Wood' };
+    const weakening: Record<string, string> = { 'Wood': 'Earth', 'Fire': 'Metal', 'Earth': 'Water', 'Metal': 'Wood', 'Water': 'Fire' }; // Controlling
+    // Resource generates DM
+    const resourceElement = Object.keys(generating).find(key => generating[key] === dmElement) || '';
+    
+    // 2. Calculate Strength Score
+    // Weights: Month Branch (40%), Other Stems (10% each), Other Branches (10% each)
+    // Note: Day Stem is the reference, not weighted itself in the check usually, but here we check support.
+    
+    let samePartyScore = 0;
+    let totalScore = 0;
+
+    pillars.forEach((p, index) => {
+        // Skip Day Master Stem (pillars[2].heavenlyStem) from calculation? 
+        // Usually we count the support *for* the Day Master.
+        
+        // Check Stem (skip Day Stem itself)
+        if (index !== 2) {
+            const weight = 10;
+            totalScore += weight;
+            if (p.elementStem === dmElement || p.elementStem === resourceElement) {
+                samePartyScore += weight;
+            }
+        }
+
+        // Check Branch
+        // Month Branch (index 1) is heaviest
+        const weight = (index === 1) ? 40 : 10;
+        totalScore += weight;
+        if (p.elementBranch === dmElement || p.elementBranch === resourceElement) {
+            samePartyScore += weight;
+        }
+    });
+
+    // Threshold for "Strong"
+    // If Same Party > 40-50%? Let's say 45% + Season support is usually strong.
+    // Simplified: > 50% score = Strong.
+    const isStrong = (samePartyScore / totalScore) >= 0.45; // Slightly lower threshold because Month Branch is heavy
+
+    // 3. Determine Pattern & Favorable Elements
+    let favorable: string[] = [];
+    let unfavorable: string[] = [];
+    let pattern = '';
+
+    // Basic Rule:
+    // Strong -> Suppress (Output, Wealth, Influence)
+    // Weak -> Support (Resource, Companion)
+    
+    const allElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
+    const sameParty = [dmElement, resourceElement];
+    const otherParty = allElements.filter(e => !sameParty.includes(e));
+
+    if (isStrong) {
+        pattern = '身强';
+        favorable = otherParty;
+        unfavorable = sameParty;
+    } else {
+        pattern = '身弱';
+        favorable = sameParty;
+        unfavorable = otherParty;
+    }
+
+    // 4. Tiao Hou (Climate Adjustment) - Critical for consistency
+    // Winter (Water months: Hai, Zi, Chou) -> Needs Fire
+    // Summer (Fire months: Si, Wu, Wei) -> Needs Water
+    const monthBranch = pillars[1].earthlyBranch;
+    const winterBranches = ['亥', '子', '丑'];
+    const summerBranches = ['巳', '午', '未'];
+
+    if (winterBranches.includes(monthBranch)) {
+        // Winter needs Fire
+        if (!favorable.includes('Fire')) {
+            favorable.unshift('Fire'); // Prioritize Fire
+            // Remove Fire from unfavorable if it was there
+            unfavorable = unfavorable.filter(e => e !== 'Fire');
+        }
+        pattern += ' (喜火调候)';
+    } else if (summerBranches.includes(monthBranch)) {
+        // Summer needs Water
+        if (!favorable.includes('Water')) {
+            favorable.unshift('Water'); // Prioritize Water
+            // Remove Water from unfavorable if it was there
+            unfavorable = unfavorable.filter(e => e !== 'Water');
+        }
+        pattern += ' (喜水调候)';
+    }
+
+    return { favorable, unfavorable, pattern };
+}
