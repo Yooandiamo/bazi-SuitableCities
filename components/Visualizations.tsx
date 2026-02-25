@@ -26,6 +26,11 @@ export const PillarsDisplay: React.FC<PillarsDisplayProps> = ({ pillars }) => {
     return 'text-slate-200';
   };
 
+  const getElementZh = (element: string) => {
+    const map: Record<string, string> = { 'Wood': '木', 'Fire': '火', 'Earth': '土', 'Metal': '金', 'Water': '水' };
+    return map[element] || element;
+  };
+
   return (
     <div className="grid grid-cols-4 gap-2 md:gap-4 w-full mb-8">
       {pillars.map((p, idx) => (
@@ -33,10 +38,10 @@ export const PillarsDisplay: React.FC<PillarsDisplayProps> = ({ pillars }) => {
           {/* Removed "Pillar" suffix since p.name will be Chinese (e.g., 年柱) */}
           <span className="text-[10px] md:text-xs uppercase tracking-widest text-slate-500 mb-2">{p.name}</span>
           <div className="flex flex-col items-center gap-1">
-            <span className={`text-2xl md:text-4xl font-serif font-bold ${getElementColor(p.elementStem)}`} title={`天干: ${p.heavenlyStem} (${p.elementStem})`}>
+            <span className={`text-2xl md:text-4xl font-serif font-bold ${getElementColor(p.elementStem)}`} title={`天干: ${p.heavenlyStem} (${getElementZh(p.elementStem)})`}>
               {p.heavenlyStem || '-'}
             </span>
-            <span className={`text-2xl md:text-4xl font-serif font-bold ${getElementColor(p.elementBranch)}`} title={`地支: ${p.earthlyBranch} (${p.elementBranch})`}>
+            <span className={`text-2xl md:text-4xl font-serif font-bold ${getElementColor(p.elementBranch)}`} title={`地支: ${p.earthlyBranch} (${getElementZh(p.elementBranch)})`}>
               {p.earthlyBranch || '-'}
             </span>
           </div>

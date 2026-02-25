@@ -267,8 +267,8 @@ export const calculateAccurateBaZi = (
     fiveElements,
     dayMaster,
     dayMasterElement,
-    favorableElements: favorable,
-    unfavorableElements: unfavorable,
+    favorableElements: favorable.map(e => LABEL_MAP[e] || e),
+    unfavorableElements: unfavorable.map(e => LABEL_MAP[e] || e),
     pattern
   };
 };
