@@ -48,7 +48,8 @@ export default async function handler(req, res) {
         model: "deepseek-chat",
         messages: messages,
         response_format: { type: "json_object" },
-        temperature: 1.1,
+        temperature: 0.1,
+        top_p: 0.1,
         max_tokens: 2000
       })
     });
