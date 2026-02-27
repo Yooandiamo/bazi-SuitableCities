@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, accessCode } = req.body;
+    const { messages, accessCode, seed } = req.body;
 
     // 2. 获取服务器端的环境变量
     const API_KEY = process.env.DEEPSEEK_API_KEY;
@@ -48,8 +48,8 @@ export default async function handler(req, res) {
         model: "deepseek-chat",
         messages: messages,
         response_format: { type: "json_object" },
-        temperature: 0.1,
-        top_p: 0.1,
+        temperature: 0.0, // 0.0 强制使用贪婪解码，消除随机性
+        seed: seed || 42, // 传入基于用户信息的固定种子
         max_tokens: 2000
       })
     });

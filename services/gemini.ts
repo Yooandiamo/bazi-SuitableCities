@@ -81,27 +81,31 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
    - 喜用神（Favorable）：${favorableStr}
    - 忌神（Unfavorable）：${unfavorableStr}
 
-2. **高阶城市推荐逻辑（打破刻板印象）**：
-   - **不要机械地只按地理方位推荐**（如缺土只推内陆，缺火只推火炉城市）。
-   - **综合考量城市的"五行属性"与"产业属性"**：
-     * 深圳/广州：地处南方，气候炎热，且深圳科技/电子/创新产业发达，极度补火与木。若喜火木，深圳是首选。
-     * 上海：地处长江入海口，金融/贸易发达，极度补水与金。若喜金水，上海是首选。
-     * 北京：地处北方，政治文化中心，带有水与土的厚重属性。
-     * 杭州/成都：多雨湿润，文化与互联网并存，带有木与水的属性。
-     * 武汉/重庆/长沙：火炉城市，地形特殊，极度补火与土。
-     * 西安/郑州：中原腹地，历史悠久，极度补土。
+2. **高阶城市推荐逻辑（五行 + 性格 双维匹配）**：
+   - **维度一：五行与产业（基于喜用神）**：
+     * 深圳/广州：南方火木旺地，科技/创新产业发达。适合喜火木、追求高效拼搏的人。
+     * 上海：东方/长江口金水旺地，金融/国际贸易发达。适合喜金水、追求精致与规则的人。
+     * 北京：北方水土旺地，政治文化中心。适合喜水土、追求宏大叙事与文化底蕴的人。
+     * 杭州/成都：木水相生，互联网与休闲文化并存。适合喜木水、追求生活品质与创造力的人。
+     * 重庆/武汉/长沙：火土旺地，地形特殊、烟火气重。适合喜火土、性格热情豪爽的人。
+     * 西安/郑州：中原土旺地，历史悠久。适合喜土、性格沉稳踏实的人。
+   - **维度二：性格与城市气质（基于格局与日主）**：
+     * **身强/比劫旺/七杀旺**：性格独立、敢打敢拼、抗压能力强。适合节奏快、竞争激烈、充满机遇的一线城市（如深圳、上海）。
+     * **身弱/印星旺/食神旺**：性格内敛、追求安稳、注重生活品质或文化精神追求。适合节奏适中、文化底蕴深厚、宜居属性强的新一线或特色城市（如成都、杭州、苏州、昆明）。
+     * **财星旺**：务实、商业嗅觉敏锐。适合商业氛围浓厚、搞钱机会多的重商城市（如广州、泉州、温州）。
+   - **综合推荐**：不要机械推荐。必须将“喜用神（决定运气和产业）”与“性格格局（决定生活节奏和适应度）”深度结合。例如：如果喜水木，但性格偏安稳内敛，优先推杭州/苏州，而不是高压的深圳；如果喜火土，且性格敢打敢拼，优先推重庆/武汉甚至深圳，而不是安逸的城市。
    - **优先推荐核心城市**：优先考虑一线（北上广深）和新一线城市，确保推荐对年轻人的职业发展有实际指导意义。推荐的5个城市要有层次感（例如2个一线 + 3个强二线/特色宜居城市）。
-   - **深度解析**：在描述中，将八字命理与城市的具体特征（如地形、气候、核心产业如科技/金融等）巧妙结合，说明为何能助旺命主的发展。
+   - **深度解析**：在描述中，将八字命理与城市的具体特征（如地形、气候、核心产业如科技/金融等）巧妙结合，说明为何能助旺命主的发展，并点出为何符合其性格。
 
 3. **返回格式**（纯 JSON，注意：输出内容中提到喜用神、五行或格局时，不要加【】等任何括号符号）：
 {
-  "summary": "50-80字的命理摘要，基于已定的${patternStr}和喜用神${favorableStr}进行阐述，点出其性格特质或职业发展方向。",
+  "summary": "50-80字的命理摘要，基于已定的${patternStr}和喜用神${favorableStr}进行阐述，点出其性格特质、生活方式偏好或职业发展方向。",
   "suitableCities": [
     { 
       "name": "城市名", 
       "score": 95, 
       "tags": ["城市特质", "优势产业", "五行属性"],
-      "description": "详细理由...结合喜用神${favorableStr}与该城市的地理、气候或核心产业（如科技、金融等）进行深度解析，说明为何能助旺命主的发展。" 
+      "description": "详细理由...结合喜用神${favorableStr}与该城市的地理、气候或核心产业（如科技、金融等）进行深度解析，说明为何能助旺命主的发展，并解释为何该城市的节奏/气质契合命主的性格。" 
     }
   ]
 }`;
@@ -127,6 +131,19 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
     2. 解释必须与系统给定的喜忌一致。
   `;
 
+  // Generate a deterministic seed based on user input
+  const generateSeed = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash);
+  };
+  const seedStr = `${input.birthDate}-${input.birthTime}-${input.gender}-${input.city}-${input.province}`;
+  const seed = generateSeed(seedStr);
+
   try {
     const response = await fetch("/api/analyze", {
       method: "POST",
@@ -138,7 +155,8 @@ export const analyzeDestinyAI = async (input: UserInput, localData: LocalAnalysi
           { role: "system", content: systemInstruction },
           { role: "user", content: userPrompt }
         ],
-        accessCode: accessCode 
+        accessCode: accessCode,
+        seed: seed
       })
     });
 
